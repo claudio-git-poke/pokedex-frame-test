@@ -28,6 +28,7 @@ const MODES = {
   mobile: {
     width: 390,
     height: 844,
+    visualScale: 1,
     padding: 22
   }
 };
@@ -58,8 +59,9 @@ let activePointerId = null;
 
 let zoomInProgress = false;
 let zoomTimer = null;
-let lastViewportWidth = window.innerWidth;
-let lastViewportHeight = window.innerHeight;
+
+let lastViewportWidth = 0;
+let lastViewportHeight = 0;
 let lastVisualViewportScale =
   window.visualViewport?.scale || 1;
 
@@ -94,14 +96,40 @@ function detectMode() {
 
 function getVirtualMetrics() {
   const config = MODES[currentMode];
+  const viewportSize = getViewportSize();
 
-  const availableWidth =
+  let availableWidth =
     config.width - config.padding * 2;
 
-  const availableHeight =
+  let availableHeight =
     config.height -
     config.padding * 2 -
     SHADE_RESERVED_HEIGHT;
+
+  if (currentMode === "mobile") {
+    const mobileScale = Math.min(
+      1,
+      viewportSize.width / config.width
+    );
+
+    const visibleVirtualWidth =
+      viewportSize.width / mobileScale;
+
+    const visibleVirtualHeight =
+      viewportSize.height / mobileScale;
+
+    availableWidth = Math.max(
+      0,
+      visibleVirtualWidth - config.padding * 2
+    );
+
+    availableHeight = Math.max(
+      0,
+      visibleVirtualHeight -
+        config.padding * 2 -
+        SHADE_RESERVED_HEIGHT
+    );
+  }
 
   const columns = Math.max(
     1,
@@ -199,6 +227,8 @@ function updatePageLayout() {
     pageGrid.style.width = "100%";
     pageGrid.style.height =
       `calc(100% - ${SHADE_RESERVED_HEIGHT}px)`;
+
+    pageGrid.style.overflow = "hidden";
   });
 
   pages.querySelectorAll(".widget-page").forEach((page) => {
@@ -256,26 +286,29 @@ function updateStageScale() {
   }
 
   const config = MODES[currentMode];
-  const rect = viewport.getBoundingClientRect();
   const viewportSize = getViewportSize();
+  const rect = viewport.getBoundingClientRect();
 
-  const visibleWidth = Math.min(
+  const availableWidth = Math.min(
     rect.width,
     viewportSize.width
   );
 
-  const visibleHeight = Math.min(
+  const availableHeight = Math.min(
     rect.height,
     viewportSize.height
   );
 
   const fitScale = Math.min(
-    visibleWidth / config.width,
-    visibleHeight / config.height
+    availableWidth / config.width,
+    availableHeight / config.height
   );
 
   const scale = currentMode === "mobile"
-    ? fitScale
+    ? Math.min(
+        1,
+        availableWidth / config.width
+      )
     : Math.min(
         fitScale,
         config.visualScale
@@ -293,6 +326,7 @@ function initializeLayout(force = false) {
 
   if (!force && currentMode === detectedMode) {
     updateStageScale();
+    buildWidgetPages();
     return;
   }
 
@@ -529,8 +563,8 @@ function beginZoomProtection() {
 
   shadeDragging = false;
   pageDragging = false;
-
   shadeOpen = false;
+
   shade.classList.remove("is-open");
   shade.setAttribute("aria-hidden", "true");
   backdrop.hidden = true;
@@ -550,46 +584,46 @@ function beginZoomProtection() {
 }
 
 function handleViewportChange() {
-  const currentViewportSize = getViewportSize();
-  const currentVisualScale =
+  const viewportSize = getViewportSize();
+  const visualScale =
     window.visualViewport?.scale || 1;
 
   const widthChanged =
     Math.abs(
-      currentViewportSize.width -
+      viewportSize.width -
       lastViewportWidth
     ) > 1;
 
   const heightChanged =
     Math.abs(
-      currentViewportSize.height -
+      viewportSize.height -
       lastViewportHeight
     ) > 1;
 
   const scaleChanged =
     Math.abs(
-      currentVisualScale -
+      visualScale -
       lastVisualViewportScale
     ) > 0.01;
 
-  if (scaleChanged || widthChanged || heightChanged) {
+  if (
+    scaleChanged ||
+    widthChanged ||
+    heightChanged
+  ) {
     beginZoomProtection();
   }
 
-  lastVisualViewportScale =
-    currentVisualScale;
-
-  lastViewportWidth =
-    currentViewportSize.width;
-
-  lastViewportHeight =
-    currentViewportSize.height;
+  lastVisualViewportScale = visualScale;
+  lastViewportWidth = viewportSize.width;
+  lastViewportHeight = viewportSize.height;
 
   clearTimeout(resizeTimer);
 
   resizeTimer = window.setTimeout(() => {
     zoomInProgress = false;
     updateStageScale();
+    buildWidgetPages();
   }, 400);
 }
 
