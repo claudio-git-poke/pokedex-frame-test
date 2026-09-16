@@ -14,22 +14,19 @@ const MODES = {
   "desktop-landscape": {
     width: 1366,
     height: 768,
-    visualScale: 0.72,
-    padding: 28
+    visualScale: 0.72
   },
 
   "desktop-portrait": {
     width: 768,
     height: 1366,
-    visualScale: 0.72,
-    padding: 24
+    visualScale: 0.72
   },
 
   mobile: {
     width: 390,
     height: 844,
-    visualScale: 1,
-    padding: 22
+    visualScale: 1
   }
 };
 
@@ -38,11 +35,10 @@ const WIDGET_GAP = 12;
 const SHADE_RESERVED_HEIGHT = 42;
 const DRAG_THRESHOLD = 50;
 
-let currentMode = null;
+let currentMode = "desktop-landscape";
 let pageIndex = 0;
 let pageCount = 1;
 let wheelLocked = false;
-let resizeTimer = null;
 
 let pageDragging = false;
 let pagePointerId = null;
@@ -52,44 +48,35 @@ let pageDragDistance = 0;
 
 let shadeOpen = false;
 let shadeDragging = false;
-let pointerStartY = 0;
+let shadePointerId = null;
 let shadeStartY = 0;
-let shadeDragY = 0;
-let activePointerId = null;
+let shadeStartOffset = 0;
+let shadeCurrentOffset = 0;
 
-let zoomInProgress = false;
-let zoomTimer = null;
-
-let lastViewportWidth = 0;
-let lastViewportHeight = 0;
-let lastVisualViewportScale =
-  window.visualViewport?.scale || 1;
+let layoutInitialized = false;
+let orientationTimer = null;
 
 function isTouchFirst() {
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const noHover = window.matchMedia("(hover: none)").matches;
-  const mobile = navigator.userAgentData?.mobile === true;
+  const coarse = window.matchMedia(
+    "(pointer: coarse)"
+  ).matches;
+
+  const noHover = window.matchMedia(
+    "(hover: none)"
+  ).matches;
+
+  const mobile =
+    navigator.userAgentData?.mobile === true;
 
   return (coarse && noHover) || mobile;
 }
 
-function getViewportSize() {
-  const visualViewport = window.visualViewport;
-
-  return {
-    width: visualViewport?.width || window.innerWidth,
-    height: visualViewport?.height || window.innerHeight
-  };
-}
-
 function detectMode() {
-  const viewportSize = getViewportSize();
-
   if (isTouchFirst()) {
     return "mobile";
   }
 
-  return viewportSize.height > viewportSize.width
+  return window.innerHeight > window.innerWidth
     ? "desktop-portrait"
     : "desktop-landscape";
 }
@@ -97,12 +84,19 @@ function detectMode() {
 function getVirtualMetrics() {
   const config = MODES[currentMode];
 
+  const padding =
+    currentMode === "mobile"
+      ? 22
+      : currentMode === "desktop-portrait"
+        ? 24
+        : 28;
+
   const availableWidth =
-    config.width - config.padding * 2;
+    config.width - padding * 2;
 
   const availableHeight =
     config.height -
-    config.padding * 2 -
+    padding * 2 -
     SHADE_RESERVED_HEIGHT;
 
   const columns = Math.max(
@@ -124,24 +118,34 @@ function getVirtualMetrics() {
   return {
     columns,
     rows,
-    capacity: columns * rows
+    capacity: columns * rows,
+    padding
   };
 }
 
-function buildWidgetPages() {
-  if (!pages || !initialGrid) {
+function getOriginalWidgets() {
+  if (!initialGrid) {
+    return [];
+  }
+
+  return Array.from(
+    initialGrid.querySelectorAll(".widget")
+  );
+}
+
+function buildWidgetPages(resetPage = true) {
+  if (!pages) {
     return;
   }
 
-  const widgets = Array.from(
-    initialGrid.querySelectorAll(".widget")
-  );
-
+  const widgets = getOriginalWidgets();
   const metrics = getVirtualMetrics();
 
   pageCount = Math.max(
     1,
-    Math.ceil(widgets.length / metrics.capacity)
+    Math.ceil(
+      widgets.length / metrics.capacity
+    )
   );
 
   pages.replaceChildren();
@@ -152,12 +156,10 @@ function buildWidgetPages() {
     pageNumber += 1
   ) {
     const page = document.createElement("div");
-
     page.className = "widget-page";
     page.dataset.page = String(pageNumber);
 
     const pageGrid = document.createElement("div");
-
     pageGrid.className = "widget-grid";
     pageGrid.setAttribute(
       "aria-label",
@@ -173,47 +175,45 @@ function buildWidgetPages() {
     );
 
     pageWidgets.forEach((widget) => {
-      pageGrid.appendChild(widget);
+      pageGrid.appendChild(
+        widget.cloneNode(true)
+      );
     });
 
     page.appendChild(pageGrid);
     pages.appendChild(page);
   }
 
-  updatePageLayout();
-  goToPage(0, false);
+  updateGridStyles();
+
+  if (resetPage) {
+    pageIndex = 0;
+  }
+
+  requestAnimationFrame(() => {
+    goToPage(pageIndex, false);
+  });
 }
 
-function updatePageLayout() {
+function updateGridStyles() {
   if (!pages) {
     return;
   }
 
   const metrics = getVirtualMetrics();
 
-  pages.querySelectorAll(".widget-grid").forEach((pageGrid) => {
-    pageGrid.style.gridTemplateColumns =
+  pages.querySelectorAll(".widget-grid").forEach((gridElement) => {
+    gridElement.style.gridTemplateColumns =
       `repeat(${metrics.columns}, ${WIDGET_SIZE}px)`;
 
-    pageGrid.style.gridTemplateRows =
+    gridElement.style.gridTemplateRows =
       `repeat(${metrics.rows}, ${WIDGET_SIZE}px)`;
 
-    pageGrid.style.width = "100%";
-    pageGrid.style.height =
-      `calc(100% - ${SHADE_RESERVED_HEIGHT}px)`;
+    gridElement.style.columnGap =
+      `${WIDGET_GAP}px`;
 
-    pageGrid.style.minWidth = "0";
-    pageGrid.style.maxWidth = "100%";
-    pageGrid.style.overflow = "hidden";
-  });
-
-  pages.querySelectorAll(".widget-page").forEach((page) => {
-    page.style.width = "100%";
-    page.style.minWidth = "100%";
-    page.style.maxWidth = "100%";
-    page.style.paddingTop =
-      `${SHADE_RESERVED_HEIGHT}px`;
-    page.style.overflow = "hidden";
+    gridElement.style.rowGap =
+      `${WIDGET_GAP}px`;
   });
 }
 
@@ -259,64 +259,40 @@ function updatePageIndexFromScroll() {
 }
 
 function updateStageScale() {
-  if (!viewport || !stage || !currentMode) {
+  if (!stage || !viewport) {
     return;
   }
 
   const config = MODES[currentMode];
-  const rect = viewport.getBoundingClientRect();
-  const viewportSize = getViewportSize();
+  const viewportRect =
+    viewport.getBoundingClientRect();
 
-  const visibleWidth = Math.min(
-    rect.width,
-    viewportSize.width
+  const scale = Math.min(
+    viewportRect.width / config.width,
+    viewportRect.height / config.height
   );
 
-  const visibleHeight = Math.min(
-    rect.height,
-    viewportSize.height
-  );
-
-  const fitScale = Math.min(
-    visibleWidth / config.width,
-    visibleHeight / config.height
-  );
-
-  const scale = currentMode === "mobile"
-    ? Math.min(
-        fitScale,
-        1
-      )
-    : Math.min(
-        fitScale,
-        config.visualScale
-      );
-
-  stage.dataset.mode = currentMode;
   stage.style.width = `${config.width}px`;
   stage.style.height = `${config.height}px`;
+  stage.dataset.mode = currentMode;
   stage.style.transform =
     `translate(-50%, -50%) scale(${scale})`;
 }
 
-function initializeLayout(force = false) {
-  const detectedMode = detectMode();
-
-  if (!force && currentMode === detectedMode) {
-    updateStageScale();
-    buildWidgetPages();
+function initializeLayout() {
+  if (layoutInitialized) {
     return;
   }
 
-  currentMode = detectedMode;
-  pageIndex = 0;
-
+  currentMode = detectMode();
   updateStageScale();
-  buildWidgetPages();
+  buildWidgetPages(true);
+
+  layoutInitialized = true;
 }
 
 function handleWheel(event) {
-  if (!pages || wheelLocked || zoomInProgress) {
+  if (!pages || wheelLocked) {
     return;
   }
 
@@ -341,7 +317,7 @@ function handleWheel(event) {
 }
 
 function beginPageDrag(event) {
-  if (!pages || zoomInProgress) {
+  if (!pages) {
     return;
   }
 
@@ -398,11 +374,9 @@ function endPageDrag(event) {
   }
 
   pageDragging = false;
-
   pages.releasePointerCapture?.(
     pagePointerId
   );
-
   pages.style.scrollBehavior = "smooth";
 
   if (
@@ -420,10 +394,6 @@ function endPageDrag(event) {
 }
 
 function setOpen(open) {
-  if (zoomInProgress) {
-    return;
-  }
-
   shadeOpen = Boolean(open);
 
   shade.classList.toggle(
@@ -441,27 +411,19 @@ function setOpen(open) {
   shade.style.transform = shadeOpen
     ? "translateY(0)"
     : "translateY(calc(-100% + var(--shade-grabber-height)))";
-
-  topBall.style.top = shadeOpen
-    ? "calc(100% - var(--pokeball-offset))"
-    : "var(--pokeball-offset)";
 }
 
 function beginShadeDrag(event) {
-  if (zoomInProgress) {
-    return;
-  }
-
   shadeDragging = true;
-  activePointerId = event.pointerId;
-  pointerStartY = event.clientY;
-
-  shadeStartY = shadeOpen
+  shadePointerId = event.pointerId;
+  shadeStartY = event.clientY;
+  shadeStartOffset = shadeOpen
     ? 0
     : -shade.offsetHeight +
       SHADE_RESERVED_HEIGHT;
+  shadeCurrentOffset = shadeStartOffset;
 
-  shadeDragY = shadeStartY;
+  shade.style.transition = "none";
 
   [grabber, shade, topBall].forEach((element) => {
     element.classList.add("is-dragging");
@@ -471,28 +433,27 @@ function beginShadeDrag(event) {
 }
 
 function moveShadeDrag(event) {
-  if (!shadeDragging || zoomInProgress) {
+  if (!shadeDragging) {
     return;
   }
 
-  if (event.pointerId !== activePointerId) {
+  if (event.pointerId !== shadePointerId) {
     return;
   }
 
-  shadeDragY = Math.max(
+  shadeCurrentOffset = Math.max(
     -shade.offsetHeight +
       SHADE_RESERVED_HEIGHT,
     Math.min(
       0,
-      shadeStartY +
+      shadeStartOffset +
         event.clientY -
-        pointerStartY
+        shadeStartY
     )
   );
 
-  shade.style.transition = "none";
   shade.style.transform =
-    `translateY(${shadeDragY}px)`;
+    `translateY(${shadeCurrentOffset}px)`;
 
   event.preventDefault();
 }
@@ -504,16 +465,16 @@ function endShadeDrag(event) {
 
   if (
     event.pointerId != null &&
-    event.pointerId !== activePointerId
+    event.pointerId !== shadePointerId
   ) {
     return;
   }
 
-  const moved =
-    event.clientY - pointerStartY;
+  const movement =
+    event.clientY - shadeStartY;
 
   shadeDragging = false;
-  activePointerId = null;
+  shadePointerId = null;
 
   [grabber, shade, topBall].forEach((element) => {
     element.classList.remove("is-dragging");
@@ -521,88 +482,33 @@ function endShadeDrag(event) {
 
   shade.style.transition = "";
 
-  if (zoomInProgress) {
-    return;
-  }
-
-  if (moved > 8) {
+  if (movement > 8) {
     setOpen(true);
-  } else if (moved < -8) {
+  } else if (movement < -8) {
     setOpen(false);
   } else {
     setOpen(shadeOpen);
   }
 }
 
-function beginZoomProtection() {
-  zoomInProgress = true;
+function handleOrientationChange() {
+  clearTimeout(orientationTimer);
 
-  clearTimeout(zoomTimer);
+  orientationTimer = window.setTimeout(() => {
+    const nextMode = detectMode();
 
-  shadeDragging = false;
-  pageDragging = false;
-  shadeOpen = false;
+    if (nextMode === currentMode) {
+      return;
+    }
 
-  shade.classList.remove("is-open");
-  shade.setAttribute("aria-hidden", "true");
-  backdrop.hidden = true;
+    currentMode = nextMode;
+    layoutInitialized = false;
+    pageIndex = 0;
 
-  shade.style.transition = "none";
-  shade.style.transform =
-    "translateY(calc(-100% + var(--shade-grabber-height)))";
-
-  topBall.style.top =
-    "var(--pokeball-offset)";
-
-  zoomTimer = window.setTimeout(() => {
-    zoomInProgress = false;
-    shade.style.transition = "";
-    setOpen(false);
-  }, 400);
-}
-
-function handleViewportChange() {
-  const viewportSize = getViewportSize();
-  const visualScale =
-    window.visualViewport?.scale || 1;
-
-  const widthChanged =
-    Math.abs(
-      viewportSize.width -
-      lastViewportWidth
-    ) > 1;
-
-  const heightChanged =
-    Math.abs(
-      viewportSize.height -
-      lastViewportHeight
-    ) > 1;
-
-  const scaleChanged =
-    Math.abs(
-      visualScale -
-      lastVisualViewportScale
-    ) > 0.01;
-
-  if (
-    scaleChanged ||
-    widthChanged ||
-    heightChanged
-  ) {
-    beginZoomProtection();
-  }
-
-  lastVisualViewportScale = visualScale;
-  lastViewportWidth = viewportSize.width;
-  lastViewportHeight = viewportSize.height;
-
-  clearTimeout(resizeTimer);
-
-  resizeTimer = window.setTimeout(() => {
-    zoomInProgress = false;
     updateStageScale();
-    buildWidgetPages();
-  }, 400);
+    buildWidgetPages(true);
+    layoutInitialized = true;
+  }, 250);
 }
 
 pages?.addEventListener(
@@ -662,7 +568,7 @@ document.addEventListener(
 );
 
 topBall.addEventListener("click", () => {
-  if (!shadeDragging && !zoomInProgress) {
+  if (!shadeDragging) {
     setOpen(!shadeOpen);
   }
 });
@@ -673,10 +579,7 @@ grabber.addEventListener("keydown", (event) => {
     event.key === " "
   ) {
     event.preventDefault();
-
-    if (!zoomInProgress) {
-      setOpen(!shadeOpen);
-    }
+    setOpen(!shadeOpen);
   }
 });
 
@@ -694,10 +597,6 @@ document
   .querySelectorAll("[data-toggle]")
   .forEach((tile) => {
     tile.addEventListener("click", () => {
-      if (zoomInProgress) {
-        return;
-      }
-
       tile.classList.toggle("is-active");
 
       const active =
@@ -719,38 +618,15 @@ document
 document
   .querySelector("#settingsButton")
   ?.addEventListener("click", () => {
-    if (!zoomInProgress) {
-      message.textContent =
-        "Impostazioni: pannello dimostrativo";
-    }
+    message.textContent =
+      "Impostazioni: pannello dimostrativo";
   });
 
 window.addEventListener(
-  "resize",
-  handleViewportChange,
-  { passive: true }
-);
-
-window.visualViewport?.addEventListener(
-  "resize",
-  handleViewportChange,
-  { passive: true }
-);
-
-window.addEventListener(
   "orientationchange",
-  () => {
-    currentMode = detectMode();
-    initializeLayout(true);
-  },
+  handleOrientationChange,
   { passive: true }
 );
 
-const initialViewportSize = getViewportSize();
-
-lastViewportWidth = initialViewportSize.width;
-lastViewportHeight = initialViewportSize.height;
-currentMode = detectMode();
-
-initializeLayout(true);
+initializeLayout();
 setOpen(false);
