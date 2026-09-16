@@ -350,3 +350,35 @@ body{
 @media (max-width:700px){
   .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* === Layout widget: 2 colonne, 200 × 200px, centrati === */
+:root {
+  --widget-size: 200px;
+  --widget-gap: 16px;
+  --widget-columns: 2;
+}
+
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--widget-columns), var(--widget-size));
+  grid-auto-rows: var(--widget-size);
+  gap: var(--widget-gap);
+
+  width: calc(
+    (var(--widget-size) * var(--widget-columns)) +
+    (var(--widget-gap) * (var(--widget-columns) - 1))
+  );
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0 auto;
+  align-content: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.widget {
+  width: var(--widget-size);
+  height: var(--widget-size);
+}
