@@ -1,4 +1,6 @@
-/* Reset */
+/* =========================
+   Reset e variabili
+   ========================= */
 :root {
   --frame: clamp(8px, 2vw, 32px);
   --shell-border: clamp(3px, 0.8vw, 10px);
@@ -10,6 +12,7 @@
   --pokeball-offset: 16px;
   --widget-size: 150px;
   --widget-gap: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -21,6 +24,8 @@ html,
 body {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   margin: 0;
 }
 
@@ -42,11 +47,15 @@ input {
   font: inherit;
 }
 
-/* Cornice */
+/* =========================
+   Cornice esterna
+   ========================= */
 .device {
   position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   isolation: isolate;
   background: linear-gradient(135deg, var(--frame-top) 0 49.7%, var(--frame-bottom) 50.3% 100%);
@@ -74,7 +83,9 @@ input {
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Display */
+/* =========================
+   Display
+   ========================= */
 .display-shell {
   position: absolute;
   inset: var(--frame);
@@ -90,6 +101,8 @@ input {
   position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background: #07120e;
 }
@@ -110,14 +123,19 @@ input {
   display: flex;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   scroll-behavior: smooth;
+  touch-action: pan-y;
 }
 
 .widget-page {
   flex: 0 0 100%;
   width: 100%;
   height: 100%;
+  min-width: 100%;
+  min-height: 0;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -159,7 +177,9 @@ input {
   overflow-wrap: anywhere;
 }
 
-/* Overlay e tendina */
+/* =========================
+   Tendina
+   ========================= */
 .shade-backdrop {
   position: absolute;
   inset: 0;
@@ -181,13 +201,13 @@ input {
   z-index: 100;
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 100%;
   overflow: hidden;
   padding: 0;
+  border: 0;
   border-radius: 0;
   background: #000;
-  opacity: 1;
-  visibility: visible;
   box-shadow: none;
   transform: translateY(calc(-100% + var(--shade-grabber-height)));
   transition: transform 0.24s ease;
@@ -195,28 +215,25 @@ input {
   touch-action: none;
 }
 
-/* Quando chiusa, la tendina e ogni suo contenuto diventano neri e non mostrano testo o linee. */
-.quick-shade:not(.is-open),
-.quick-shade:not(.is-open) *,
-.quick-shade:not(.is-open)::before,
-.quick-shade:not(.is-open)::after {
-  color: #000 !important;
-  border-color: #000 !important;
+/* Quando chiusa esiste solo una barra nera agganciata al bordo superiore. */
+.quick-shade:not(.is-open) {
   background: #000 !important;
+  color: transparent !important;
+  border: 0 !important;
   box-shadow: none !important;
-  text-shadow: none !important;
-  opacity: 1 !important;
-  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-.quick-shade:not(.is-open) .shade-grabber {
-  visibility: visible !important;
-  background: #000 !important;
+.quick-shade:not(.is-open) > :not(.shade-grabber) {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .quick-shade.is-open {
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: calc(58px + env(safe-area-inset-top, 0px)) 22px calc(30px + var(--safe-bottom));
+  padding: calc(58px + var(--safe-top)) 22px calc(30px + var(--safe-bottom));
   background: #07120e;
   pointer-events: auto;
 }
@@ -226,13 +243,16 @@ input {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 110;
+  z-index: 120;
+  display: block;
+  width: 100%;
   height: var(--shade-grabber-height);
-  background: #000;
+  border: 0;
+  background: #000 !important;
   cursor: grab;
   touch-action: none;
   user-select: none;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 .shade-grabber:active {
@@ -260,7 +280,7 @@ input {
 
 .shade-close {
   position: relative;
-  z-index: 120;
+  z-index: 130;
   border: 0;
   background: transparent;
   color: #d8f5e1;
@@ -406,12 +426,15 @@ input {
   font-size: 12px;
 }
 
-/* Poké Ball */
+/* =========================
+   Poké Ball
+   ========================= */
 .pokeball {
   position: absolute;
   z-index: 130;
   width: var(--pokeball-size);
   height: var(--pokeball-size);
+  padding: 0;
   border: var(--pokeball-border) solid #171717;
   border-radius: 50%;
   background: linear-gradient(#f5f1e7 0 46%, #171717 46% 54%, #c92828 54% 100%);
@@ -458,7 +481,22 @@ input {
   touch-action: none;
 }
 
+/* Su mobile sfrutta tutta l'altezza disponibile del viewport */
 @media (max-width: 700px) {
+  :root {
+    --frame: 8px;
+    --shell-border: 5px;
+    --widget-gap: 16px;
+  }
+
+  .device {
+    min-height: 100dvh;
+  }
+
+  .display-shell {
+    inset: var(--frame);
+  }
+
   .quick-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
