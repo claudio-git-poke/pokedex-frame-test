@@ -1,4 +1,4 @@
-/* Reset e variabili */
+/* Reset */
 :root {
   --frame: clamp(8px, 2vw, 32px);
   --shell-border: clamp(3px, 0.8vw, 10px);
@@ -159,17 +159,20 @@ input {
   overflow-wrap: anywhere;
 }
 
-/* Sfondo della tendina quando è aperta: completamente opaco */
+/* Overlay e tendina */
 .shade-backdrop {
   position: absolute;
   inset: 0;
   z-index: 90;
-  background: rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(2px);
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
 }
 
-.shade-backdrop[hidden] {
-  display: none;
+.shade-backdrop:not([hidden]) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .quick-shade {
@@ -179,26 +182,45 @@ input {
   width: 100%;
   height: 100%;
   min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: calc(58px + env(safe-area-inset-top, 0px)) 22px calc(30px + var(--safe-bottom));
+  overflow: hidden;
+  padding: 0;
   border-radius: 0;
-  background: #07120e;
+  background: #000;
   opacity: 1;
   visibility: visible;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48);
+  box-shadow: none;
   transform: translateY(calc(-100% + var(--shade-grabber-height)));
   transition: transform 0.24s ease;
   pointer-events: none;
   touch-action: none;
 }
 
+/* Quando chiusa, la tendina e ogni suo contenuto diventano neri e non mostrano testo o linee. */
+.quick-shade:not(.is-open),
+.quick-shade:not(.is-open) *,
+.quick-shade:not(.is-open)::before,
+.quick-shade:not(.is-open)::after {
+  color: #000 !important;
+  border-color: #000 !important;
+  background: #000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+  visibility: hidden !important;
+}
+
+.quick-shade:not(.is-open) .shade-grabber {
+  visibility: visible !important;
+  background: #000 !important;
+}
+
 .quick-shade.is-open {
-  transform: translateY(0);
+  overflow-y: auto;
+  padding: calc(58px + env(safe-area-inset-top, 0px)) 22px calc(30px + var(--safe-bottom));
+  background: #07120e;
   pointer-events: auto;
 }
 
-/* Barra nera sempre visibile nella parte agganciata */
 .shade-grabber {
   position: absolute;
   top: 0;
