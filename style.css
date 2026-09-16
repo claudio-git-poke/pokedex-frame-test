@@ -1,9 +1,9 @@
+/* Reset e variabili */
 :root {
   --frame: clamp(8px, 2vw, 32px);
   --shell-border: clamp(3px, 0.8vw, 10px);
   --frame-top: #c92828;
   --frame-bottom: #f4f0e7;
-  --ink: #07120e;
   --shade-grabber-height: clamp(12px, 3vw, 42px);
   --pokeball-size: clamp(24px, 6vw, 72px);
   --pokeball-border: clamp(2px, 0.5vw, 5px);
@@ -36,6 +36,13 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+button,
+select,
+input {
+  font: inherit;
+}
+
+/* Cornice */
 .device {
   position: relative;
   width: 100%;
@@ -44,6 +51,7 @@ body {
   isolation: isolate;
   background: linear-gradient(135deg, var(--frame-top) 0 49.7%, var(--frame-bottom) 50.3% 100%);
   border: clamp(1px, 0.3vw, 3px) solid #210f12;
+  box-shadow: inset 0 0 0 clamp(1px, 0.3vw, 3px) rgba(255, 255, 255, 0.13), inset 0 0 28px rgba(0, 0, 0, 0.32);
 }
 
 .device::before,
@@ -66,6 +74,7 @@ body {
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.3);
 }
 
+/* Display */
 .display-shell {
   position: absolute;
   inset: var(--frame);
@@ -74,6 +83,7 @@ body {
   border: var(--shell-border) solid #171e1a;
   border-radius: 16px;
   background: #07120e;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), inset 0 0 0 2px rgba(140, 255, 185, 0.08);
 }
 
 .stage-viewport {
@@ -91,7 +101,8 @@ body {
   display: grid;
   grid-template-rows: 1fr;
   overflow: hidden;
-  background: #07120e;
+  background: linear-gradient(rgba(29, 137, 92, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(29, 137, 92, 0.035) 1px, transparent 1px), radial-gradient(circle at 20% 10%, rgba(38, 193, 121, 0.1), transparent 32%), #07120e;
+  background-size: 22px 22px, 22px 22px, auto, auto;
   transform-origin: center center;
 }
 
@@ -100,6 +111,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  scroll-behavior: smooth;
 }
 
 .widget-page {
@@ -147,16 +159,29 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Tendina completamente coprente anche su desktop. */
+/* Sfondo della tendina quando è aperta: completamente opaco */
+.shade-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.shade-backdrop[hidden] {
+  display: none;
+}
+
 .quick-shade {
   position: absolute;
-  z-index: 100;
   inset: 0;
+  z-index: 100;
   width: 100%;
   height: 100%;
   min-height: 100%;
-  padding: calc(58px + env(safe-area-inset-top, 0px)) 22px calc(30px + var(--safe-bottom));
+  overflow-x: hidden;
   overflow-y: auto;
+  padding: calc(58px + env(safe-area-inset-top, 0px)) 22px calc(30px + var(--safe-bottom));
   border-radius: 0;
   background: #07120e;
   opacity: 1;
@@ -173,24 +198,13 @@ body {
   pointer-events: auto;
 }
 
-.shade-backdrop {
-  position: absolute;
-  z-index: 90;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(2px);
-}
-
-.shade-backdrop[hidden] {
-  display: none;
-}
-
+/* Barra nera sempre visibile nella parte agganciata */
 .shade-grabber {
   position: absolute;
-  z-index: 110;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 110;
   height: var(--shade-grabber-height);
   background: #000;
   cursor: grab;
@@ -224,7 +238,7 @@ body {
 
 .shade-close {
   position: relative;
-  z-index: 110;
+  z-index: 120;
   border: 0;
   background: transparent;
   color: #d8f5e1;
@@ -370,9 +384,10 @@ body {
   font-size: 12px;
 }
 
+/* Poké Ball */
 .pokeball {
   position: absolute;
-  z-index: 120;
+  z-index: 130;
   width: var(--pokeball-size);
   height: var(--pokeball-size);
   border: var(--pokeball-border) solid #171717;
