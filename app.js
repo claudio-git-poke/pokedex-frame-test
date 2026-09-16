@@ -56,10 +56,12 @@ let shadeStartY = 0;
 let shadeDragY = 0;
 let activePointerId = null;
 
+let zoomInProgress = false;
+let zoomTimer = null;
+let lastViewportWidth = window.innerWidth;
+let lastViewportHeight = window.innerHeight;
 let lastVisualViewportScale =
   window.visualViewport?.scale || 1;
-
-let ignoreZoomResizeUntil = 0;
 
 function isTouchFirst() {
   const coarse = window.matchMedia("(pointer: coarse)").matches;
@@ -280,7 +282,7 @@ function initializeLayout(force = false) {
 }
 
 function handleWheel(event) {
-  if (!pages || wheelLocked) {
+  if (!pages || wheelLocked || zoomInProgress) {
     return;
   }
 
@@ -305,7 +307,7 @@ function handleWheel(event) {
 }
 
 function beginPageDrag(event) {
-  if (!pages) {
+  if (!pages || zoomInProgress) {
     return;
   }
 
@@ -384,6 +386,10 @@ function endPageDrag(event) {
 }
 
 function setOpen(open) {
+  if (zoomInProgress) {
+    return;
+  }
+
   shadeOpen = Boolean(open);
 
   shade.classList.toggle(
@@ -408,6 +414,10 @@ function setOpen(open) {
 }
 
 function beginShadeDrag(event) {
+  if (zoomInProgress) {
+    return;
+  }
+
   shadeDragging = true;
   activePointerId = event.pointerId;
   pointerStartY = event.clientY;
@@ -427,7 +437,7 @@ function beginShadeDrag(event) {
 }
 
 function moveShadeDrag(event) {
-  if (!shadeDragging) {
+  if (!shadeDragging || zoomInProgress) {
     return;
   }
 
@@ -477,6 +487,10 @@ function endShadeDrag(event) {
 
   shade.style.transition = "";
 
+  if (zoomInProgress) {
+    return;
+  }
+
   if (moved > 8) {
     setOpen(true);
   } else if (moved < -8) {
@@ -484,6 +498,67 @@ function endShadeDrag(event) {
   } else {
     setOpen(shadeOpen);
   }
+}
+
+function beginZoomProtection() {
+  zoomInProgress = true;
+
+  clearTimeout(zoomTimer);
+
+  shadeDragging = false;
+  pageDragging = false;
+
+  shade.style.transition = "none";
+  shade.style.transform =
+    "translateY(calc(-100% + var(--shade-grabber-height)))";
+
+  shade.classList.remove("is-open");
+  shade.setAttribute("aria-hidden", "true");
+  backdrop.hidden = true;
+  shadeOpen = false;
+
+  topBall.style.top =
+    "var(--pokeball-offset)";
+
+  zoomTimer = window.setTimeout(() => {
+    zoomInProgress = false;
+    shade.style.transition = "";
+    setOpen(false);
+  }, 350);
+}
+
+function handleViewportChange() {
+  const currentVisualScale =
+    window.visualViewport?.scale || 1;
+
+  const widthChanged =
+    Math.abs(window.innerWidth - lastViewportWidth) > 1;
+
+  const heightChanged =
+    Math.abs(window.innerHeight - lastViewportHeight) > 1;
+
+  const scaleChanged =
+    Math.abs(
+      currentVisualScale -
+      lastVisualViewportScale
+    ) > 0.01;
+
+  if (scaleChanged || widthChanged || heightChanged) {
+    beginZoomProtection();
+  }
+
+  lastVisualViewportScale =
+    currentVisualScale;
+
+  lastViewportWidth = window.innerWidth;
+  lastViewportHeight = window.innerHeight;
+
+  clearTimeout(resizeTimer);
+
+  resizeTimer = window.setTimeout(() => {
+    zoomInProgress = false;
+    updateStageScale();
+  }, 350);
 }
 
 pages?.addEventListener(
@@ -543,7 +618,7 @@ document.addEventListener(
 );
 
 topBall.addEventListener("click", () => {
-  if (!shadeDragging) {
+  if (!shadeDragging && !zoomInProgress) {
     setOpen(!shadeOpen);
   }
 });
@@ -554,7 +629,10 @@ grabber.addEventListener("keydown", (event) => {
     event.key === " "
   ) {
     event.preventDefault();
-    setOpen(!shadeOpen);
+
+    if (!zoomInProgress) {
+      setOpen(!shadeOpen);
+    }
   }
 });
 
@@ -572,6 +650,10 @@ document
   .querySelectorAll("[data-toggle]")
   .forEach((tile) => {
     tile.addEventListener("click", () => {
+      if (zoomInProgress) {
+        return;
+      }
+
       tile.classList.toggle("is-active");
 
       const active =
@@ -593,67 +675,36 @@ document
 document
   .querySelector("#settingsButton")
   ?.addEventListener("click", () => {
-    message.textContent =
-      "Impostazioni: pannello dimostrativo";
+    if (!zoomInProgress) {
+      message.textContent =
+        "Impostazioni: pannello dimostrativo";
+    }
   });
-
-function handleResize() {
-  window.clearTimeout(resizeTimer);
-
-  const visualScale =
-    window.visualViewport?.scale || 1;
-
-  const isBrowserZoom =
-    Math.abs(
-      visualScale -
-      lastVisualViewportScale
-    ) > 0.01;
-
-  lastVisualViewportScale =
-    visualScale;
-
-  if (isBrowserZoom) {
-    ignoreZoomResizeUntil =
-      performance.now() + 250;
-
-    return;
-  }
-
-  resizeTimer = window.setTimeout(() => {
-    if (
-      performance.now() <
-      ignoreZoomResizeUntil
-    ) {
-      return;
-    }
-
-    const nextMode = detectMode();
-
-    if (nextMode !== currentMode) {
-      initializeLayout(true);
-    } else {
-      updateStageScale();
-    }
-  }, 100);
-}
 
 window.addEventListener(
   "resize",
-  handleResize,
-  { passive: true }
-);
-
-window.addEventListener(
-  "orientationchange",
-  () => initializeLayout(true),
+  handleViewportChange,
   { passive: true }
 );
 
 window.visualViewport?.addEventListener(
   "resize",
-  handleResize,
+  handleViewportChange,
   { passive: true }
 );
 
+window.addEventListener(
+  "orientationchange",
+  () => {
+    currentMode = detectMode();
+    initializeLayout(true);
+  },
+  { passive: true }
+);
+
+lastViewportWidth = window.innerWidth;
+lastViewportHeight = window.innerHeight;
 currentMode = detectMode();
+
 initializeLayout(true);
+setOpen(false);
