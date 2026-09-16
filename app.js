@@ -3,9 +3,9 @@ const stage = document.querySelector('#virtualStage');
 const diagnostics = document.querySelector('#diagnostics');
 
 const MODES = {
-  'desktop-landscape': { width: 1366, height: 768, columns: 6, input: 'MOUSE', visualScale: 0.25 },
-  'desktop-portrait': { width: 768, height: 1366, columns: 4, input: 'MOUSE', visualScale: 0.25 },
-  mobile: { width: 390, height: 844, columns: 2, input: 'TOUCH', visualScale: 1 }
+  'desktop-landscape': { width: 1366, height: 768, columns: 6, input: 'MOUSE' },
+  'desktop-portrait': { width: 768, height: 1366, columns: 4, input: 'MOUSE' },
+  mobile: { width: 390, height: 844, columns: 2, input: 'TOUCH' }
 };
 
 function isTouchFirst() {
@@ -25,7 +25,7 @@ function updateStage() {
   const config = MODES[mode];
   const rect = viewport.getBoundingClientRect();
   const fitScale = Math.min(rect.width / config.width, rect.height / config.height);
-  const scale = mode === 'mobile' ? fitScale : config.visualScale;
+  const scale = mode === 'mobile' ? fitScale : Math.min(1, Math.max(0.85, fitScale));
 
   stage.dataset.mode = mode;
   stage.style.width = `${config.width}px`;
