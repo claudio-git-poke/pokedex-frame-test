@@ -1,7 +1,7 @@
 const viewport = document.querySelector("#stageViewport");
 const stage = document.querySelector("#virtualStage");
 const pages = document.querySelector("#widgetPages");
-const grid = document.querySelector(".widget-grid");
+const initialGrid = document.querySelector(".widget-grid");
 
 const shade = document.querySelector("#quickShade");
 const backdrop = document.querySelector("#shadeBackdrop");
@@ -17,12 +17,14 @@ const MODES = {
     visualScale: 0.72,
     padding: 28
   },
+
   "desktop-portrait": {
     width: 768,
     height: 1366,
     visualScale: 0.72,
     padding: 24
   },
+
   mobile: {
     width: 390,
     height: 844,
@@ -32,12 +34,14 @@ const MODES = {
 
 const WIDGET_SIZE = 150;
 const WIDGET_GAP = 12;
+const SHADE_RESERVED_HEIGHT = 42;
 const DRAG_THRESHOLD = 50;
 
 let currentMode = null;
 let pageIndex = 0;
 let pageCount = 1;
 let wheelLocked = false;
+let resizeTimer = null;
 
 let pageDragging = false;
 let pagePointerId = null;
@@ -52,6 +56,11 @@ let shadeStartY = 0;
 let shadeDragY = 0;
 let activePointerId = null;
 
+let lastVisualViewportScale =
+  window.visualViewport?.scale || 1;
+
+let ignoreZoomResizeUntil = 0;
+
 function isTouchFirst() {
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const noHover = window.matchMedia("(hover: none)").matches;
@@ -61,7 +70,10 @@ function isTouchFirst() {
 }
 
 function detectMode() {
-  if (isTouchFirst()) return "mobile";
+  if (isTouchFirst()) {
+    return "mobile";
+  }
+
   return window.innerHeight > window.innerWidth
     ? "desktop-portrait"
     : "desktop-landscape";
@@ -70,11 +82,13 @@ function detectMode() {
 function getVirtualMetrics() {
   const config = MODES[currentMode];
 
-  const availableWidth = config.width - config.padding * 2;
+  const availableWidth =
+    config.width - config.padding * 2;
+
   const availableHeight =
     config.height -
     config.padding * 2 -
-    42;
+    SHADE_RESERVED_HEIGHT;
 
   const columns = Math.max(
     1,
@@ -100,9 +114,14 @@ function getVirtualMetrics() {
 }
 
 function buildWidgetPages() {
-  if (!pages || !grid) return;
+  if (!pages || !initialGrid) {
+    return;
+  }
 
-  const widgets = Array.from(grid.querySelectorAll(".widget"));
+  const widgets = Array.from(
+    initialGrid.querySelectorAll(".widget")
+  );
+
   const metrics = getVirtualMetrics();
 
   pageCount = Math.max(
@@ -110,24 +129,30 @@ function buildWidgetPages() {
     Math.ceil(widgets.length / metrics.capacity)
   );
 
-  const originalWidgets = widgets.slice();
-
   pages.replaceChildren();
 
-  for (let pageNumber = 0; pageNumber < pageCount; pageNumber += 1) {
+  for (
+    let pageNumber = 0;
+    pageNumber < pageCount;
+    pageNumber += 1
+  ) {
     const page = document.createElement("div");
+
     page.className = "widget-page";
     page.dataset.page = String(pageNumber);
 
     const pageGrid = document.createElement("div");
+
     pageGrid.className = "widget-grid";
     pageGrid.setAttribute(
       "aria-label",
       `Pagina ${pageNumber + 1} di ${pageCount}`
     );
 
-    const start = pageNumber * metrics.capacity;
-    const pageWidgets = originalWidgets.slice(
+    const start =
+      pageNumber * metrics.capacity;
+
+    const pageWidgets = widgets.slice(
       start,
       start + metrics.capacity
     );
@@ -145,6 +170,10 @@ function buildWidgetPages() {
 }
 
 function updatePageLayout() {
+  if (!pages) {
+    return;
+  }
+
   const metrics = getVirtualMetrics();
 
   pages.querySelectorAll(".widget-grid").forEach((pageGrid) => {
@@ -153,11 +182,24 @@ function updatePageLayout() {
 
     pageGrid.style.gridTemplateRows =
       `repeat(${metrics.rows}, ${WIDGET_SIZE}px)`;
+
+    pageGrid.style.width = "100%";
+    pageGrid.style.height =
+      `calc(100% - ${SHADE_RESERVED_HEIGHT}px)`;
+  });
+
+  pages.querySelectorAll(".widget-page").forEach((page) => {
+    page.style.width = "100%";
+    page.style.minWidth = "100%";
+    page.style.paddingTop =
+      `${SHADE_RESERVED_HEIGHT}px`;
   });
 }
 
 function goToPage(index, smooth = true) {
-  if (!pages) return;
+  if (!pages) {
+    return;
+  }
 
   pageIndex = Math.max(
     0,
@@ -171,7 +213,8 @@ function goToPage(index, smooth = true) {
 }
 
 function changePage(direction) {
-  const nextPage = pageIndex + Math.sign(direction);
+  const nextPage =
+    pageIndex + Math.sign(direction);
 
   if (nextPage !== pageIndex) {
     goToPage(nextPage);
@@ -179,19 +222,25 @@ function changePage(direction) {
 }
 
 function updatePageIndexFromScroll() {
-  if (!pages || !pages.clientWidth) return;
+  if (!pages || !pages.clientWidth) {
+    return;
+  }
 
   pageIndex = Math.max(
     0,
     Math.min(
       pageCount - 1,
-      Math.round(pages.scrollLeft / pages.clientWidth)
+      Math.round(
+        pages.scrollLeft / pages.clientWidth
+      )
     )
   );
 }
 
 function updateStageScale() {
-  if (!viewport || !stage || !currentMode) return;
+  if (!viewport || !stage || !currentMode) {
+    return;
+  }
 
   const config = MODES[currentMode];
   const rect = viewport.getBoundingClientRect();
@@ -203,7 +252,10 @@ function updateStageScale() {
 
   const scale = currentMode === "mobile"
     ? fitScale
-    : Math.min(fitScale, config.visualScale);
+    : Math.min(
+        fitScale,
+        config.visualScale
+      );
 
   stage.dataset.mode = currentMode;
   stage.style.width = `${config.width}px`;
@@ -228,13 +280,19 @@ function initializeLayout(force = false) {
 }
 
 function handleWheel(event) {
-  if (!pages || wheelLocked) return;
+  if (!pages || wheelLocked) {
+    return;
+  }
 
-  const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
-    ? event.deltaX
-    : event.deltaY;
+  const delta =
+    Math.abs(event.deltaX) >
+    Math.abs(event.deltaY)
+      ? event.deltaX
+      : event.deltaY;
 
-  if (Math.abs(delta) < 4) return;
+  if (Math.abs(delta) < 4) {
+    return;
+  }
 
   event.preventDefault();
   wheelLocked = true;
@@ -247,8 +305,16 @@ function handleWheel(event) {
 }
 
 function beginPageDrag(event) {
-  if (!pages) return;
-  if (event.button !== undefined && event.button !== 0) return;
+  if (!pages) {
+    return;
+  }
+
+  if (
+    event.button !== undefined &&
+    event.button !== 0
+  ) {
+    return;
+  }
 
   pageDragging = true;
   pagePointerId = event.pointerId;
@@ -263,12 +329,20 @@ function beginPageDrag(event) {
 }
 
 function movePageDrag(event) {
-  if (!pageDragging) return;
-  if (event.pointerId !== pagePointerId) return;
+  if (!pageDragging) {
+    return;
+  }
 
-  const delta = event.clientX - pageLastX;
+  if (event.pointerId !== pagePointerId) {
+    return;
+  }
+
+  const delta =
+    event.clientX - pageLastX;
+
   pageLastX = event.clientX;
-  pageDragDistance = event.clientX - pageStartX;
+  pageDragDistance =
+    event.clientX - pageStartX;
 
   pages.scrollLeft -= delta;
 
@@ -276,7 +350,10 @@ function movePageDrag(event) {
 }
 
 function endPageDrag(event) {
-  if (!pageDragging) return;
+  if (!pageDragging) {
+    return;
+  }
+
   if (
     event.pointerId != null &&
     event.pointerId !== pagePointerId
@@ -285,11 +362,20 @@ function endPageDrag(event) {
   }
 
   pageDragging = false;
-  pages.releasePointerCapture?.(pagePointerId);
+
+  pages.releasePointerCapture?.(
+    pagePointerId
+  );
+
   pages.style.scrollBehavior = "smooth";
 
-  if (Math.abs(pageDragDistance) >= DRAG_THRESHOLD) {
-    changePage(pageDragDistance < 0 ? 1 : -1);
+  if (
+    Math.abs(pageDragDistance) >=
+    DRAG_THRESHOLD
+  ) {
+    changePage(
+      pageDragDistance < 0 ? 1 : -1
+    );
   } else {
     goToPage(pageIndex);
   }
@@ -298,27 +384,39 @@ function endPageDrag(event) {
 }
 
 function setOpen(open) {
-  shadeOpen = open;
-  shade.classList.toggle("is-open", open);
-  shade.setAttribute("aria-hidden", String(!open));
-  backdrop.hidden = !open;
+  shadeOpen = Boolean(open);
 
-  shade.style.transform = open
+  shade.classList.toggle(
+    "is-open",
+    shadeOpen
+  );
+
+  shade.setAttribute(
+    "aria-hidden",
+    String(!shadeOpen)
+  );
+
+  backdrop.hidden = !shadeOpen;
+
+  shade.style.transform = shadeOpen
     ? "translateY(0)"
-    : "translateY(calc(-100% + 42px))";
+    : "translateY(calc(-100% + var(--shade-grabber-height)))";
 
-  topBall.style.top = open
-    ? "calc(100vh - 16px)"
-    : "16px";
+  topBall.style.top = shadeOpen
+    ? "calc(100% - var(--pokeball-offset))"
+    : "var(--pokeball-offset)";
 }
 
 function beginShadeDrag(event) {
   shadeDragging = true;
   activePointerId = event.pointerId;
   pointerStartY = event.clientY;
+
   shadeStartY = shadeOpen
     ? 0
-    : -shade.offsetHeight + 42;
+    : -shade.offsetHeight +
+      SHADE_RESERVED_HEIGHT;
+
   shadeDragY = shadeStartY;
 
   [grabber, shade, topBall].forEach((element) => {
@@ -329,14 +427,22 @@ function beginShadeDrag(event) {
 }
 
 function moveShadeDrag(event) {
-  if (!shadeDragging) return;
-  if (event.pointerId !== activePointerId) return;
+  if (!shadeDragging) {
+    return;
+  }
+
+  if (event.pointerId !== activePointerId) {
+    return;
+  }
 
   shadeDragY = Math.max(
-    -shade.offsetHeight + 42,
+    -shade.offsetHeight +
+      SHADE_RESERVED_HEIGHT,
     Math.min(
       0,
-      shadeStartY + event.clientY - pointerStartY
+      shadeStartY +
+        event.clientY -
+        pointerStartY
     )
   );
 
@@ -348,7 +454,10 @@ function moveShadeDrag(event) {
 }
 
 function endShadeDrag(event) {
-  if (!shadeDragging) return;
+  if (!shadeDragging) {
+    return;
+  }
+
   if (
     event.pointerId != null &&
     event.pointerId !== activePointerId
@@ -356,7 +465,8 @@ function endShadeDrag(event) {
     return;
   }
 
-  const moved = event.clientY - pointerStartY;
+  const moved =
+    event.clientY - pointerStartY;
 
   shadeDragging = false;
   activePointerId = null;
@@ -376,9 +486,11 @@ function endShadeDrag(event) {
   }
 }
 
-pages?.addEventListener("wheel", handleWheel, {
-  passive: false
-});
+pages?.addEventListener(
+  "wheel",
+  handleWheel,
+  { passive: false }
+);
 
 pages?.addEventListener(
   "scroll",
@@ -437,7 +549,10 @@ topBall.addEventListener("click", () => {
 });
 
 grabber.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" || event.key === " ") {
+  if (
+    event.key === "Enter" ||
+    event.key === " "
+  ) {
     event.preventDefault();
     setOpen(!shadeOpen);
   }
@@ -459,14 +574,19 @@ document
     tile.addEventListener("click", () => {
       tile.classList.toggle("is-active");
 
-      const active = tile.classList.contains("is-active");
-      const label = tile.querySelector("strong").textContent;
+      const active =
+        tile.classList.contains("is-active");
+
+      const label =
+        tile.querySelector("strong").textContent;
 
       tile.querySelector("small").textContent =
         active ? "Attivi" : "Disattivi";
 
       message.textContent =
-        `${label}: ${active ? "attivato" : "disattivato"}`;
+        `${label}: ${
+          active ? "attivato" : "disattivato"
+        }`;
     });
   });
 
@@ -477,12 +597,36 @@ document
       "Impostazioni: pannello dimostrativo";
   });
 
-let resizeTimer;
-
 function handleResize() {
   window.clearTimeout(resizeTimer);
 
+  const visualScale =
+    window.visualViewport?.scale || 1;
+
+  const isBrowserZoom =
+    Math.abs(
+      visualScale -
+      lastVisualViewportScale
+    ) > 0.01;
+
+  lastVisualViewportScale =
+    visualScale;
+
+  if (isBrowserZoom) {
+    ignoreZoomResizeUntil =
+      performance.now() + 250;
+
+    return;
+  }
+
   resizeTimer = window.setTimeout(() => {
+    if (
+      performance.now() <
+      ignoreZoomResizeUntil
+    ) {
+      return;
+    }
+
     const nextMode = detectMode();
 
     if (nextMode !== currentMode) {
@@ -502,6 +646,12 @@ window.addEventListener(
 window.addEventListener(
   "orientationchange",
   () => initializeLayout(true),
+  { passive: true }
+);
+
+window.visualViewport?.addEventListener(
+  "resize",
+  handleResize,
   { passive: true }
 );
 
