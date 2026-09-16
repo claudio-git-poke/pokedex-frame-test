@@ -258,11 +258,7 @@ body {
     22px
     calc(30px + var(--safe-bottom));
   border-radius: 0;
-  background: linear-gradient(
-    145deg,
-    #182f27,
-    #07120e 82%
-  );
+  background: #07120e;
   box-shadow: 0 12px 28px
     rgba(0, 0, 0, 0.48);
   transform: translateY(
@@ -271,15 +267,21 @@ body {
   transition: transform 0.24s ease;
   touch-action: none;
   overflow-y: auto;
+  pointer-events: none;
 }
 
 .quick-shade.is-open {
   transform: translateY(0);
+  pointer-events: auto;
+}
+
+.quick-shade > * {
+  pointer-events: auto;
 }
 
 .shade-grabber {
   position: absolute;
-  z-index: 2;
+  z-index: 50;
   top: 0;
   left: 0;
   right: 0;
@@ -288,6 +290,7 @@ body {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  pointer-events: auto;
 }
 
 .shade-grabber:active {
@@ -314,11 +317,14 @@ body {
 }
 
 .shade-close {
+  position: relative;
+  z-index: 50;
   border: 0;
   background: transparent;
   color: #d8f5e1;
   font-size: 30px;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .quick-grid {
@@ -367,12 +373,15 @@ body {
 }
 
 .frame-settings {
+  position: relative;
+  z-index: 40;
   margin-top: 24px;
   padding: 16px;
   border: 1px solid
     rgba(124, 229, 162, 0.28);
   border-radius: 16px;
-  background: rgba(7, 18, 14, 0.58);
+  background: rgba(7, 18, 14, 0.95);
+  pointer-events: auto;
 }
 
 .frame-settings h3 {
@@ -388,6 +397,8 @@ body {
 
 .setting-control,
 .size-control {
+  position: relative;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -395,9 +406,12 @@ body {
   margin-top: 10px;
   color: #dff8e7;
   font-size: 13px;
+  pointer-events: auto;
 }
 
 .setting-control select {
+  position: relative;
+  z-index: 50;
   min-width: 110px;
   padding: 7px 9px;
   border: 1px solid
@@ -405,6 +419,8 @@ body {
   border-radius: 8px;
   color: #eaf5ed;
   background: #0d2419;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .size-control {
@@ -412,11 +428,19 @@ body {
 }
 
 .size-control input {
+  position: relative;
+  z-index: 50;
   width: 100%;
+  min-height: 24px;
   accent-color: #53e28a;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: pan-y;
 }
 
 .widget-preview {
+  position: relative;
+  z-index: 40;
   width: var(--widget-size);
   height: var(--widget-size);
   margin: 16px auto 0;
@@ -436,6 +460,7 @@ body {
   transition:
     width 0.12s ease,
     height 0.12s ease;
+  pointer-events: auto;
 }
 
 .widget-preview span {
