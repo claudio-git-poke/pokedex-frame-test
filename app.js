@@ -53,6 +53,7 @@ function beginDrag(event) {
   dragStartOffset = offsetY;
   handle.setPointerCapture?.(event.pointerId);
   handle.classList.add('is-dragging');
+  document.body.classList.add('is-dragging-stage');
   event.preventDefault();
 }
 
@@ -68,12 +69,16 @@ function endDrag(event) {
   dragging = false;
   activePointerId = null;
   handle.classList.remove('is-dragging');
+  document.body.classList.remove('is-dragging-stage');
 }
 
 handle.addEventListener('pointerdown', beginDrag);
 document.addEventListener('pointermove', moveDrag, { passive: false });
 document.addEventListener('pointerup', endDrag);
 document.addEventListener('pointercancel', endDrag);
+document.addEventListener('selectstart', event => {
+  if (dragging) event.preventDefault();
+});
 
 const resizeObserver = new ResizeObserver(updateStage);
 resizeObserver.observe(viewport);
