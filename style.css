@@ -1,7 +1,8 @@
 :root {
   --frame: clamp(8px, 2vw, 32px);
   --shell-border: clamp(3px, 0.8vw, 10px);
-  --red: #c92828;
+  --frame-top: #c92828;
+  --frame-bottom: #f4f0e7;
   --white: #f4f0e7;
   --ink: #07120e;
   --shade-grabber-height: clamp(12px, 3vw, 42px);
@@ -55,8 +56,8 @@ body {
   isolation: isolate;
   background: linear-gradient(
     135deg,
-    var(--red) 0 49.7%,
-    var(--white) 50.3% 100%
+    var(--frame-top) 0 49.7%,
+    var(--frame-bottom) 50.3% 100%
   );
   border: clamp(1px, 0.3vw, 3px) solid #210f12;
   box-shadow:
@@ -269,6 +270,7 @@ body {
   );
   transition: transform 0.24s ease;
   touch-action: none;
+  overflow-y: auto;
 }
 
 .quick-shade.is-open {
@@ -364,6 +366,87 @@ body {
   opacity: 0.78;
 }
 
+.frame-settings {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid
+    rgba(124, 229, 162, 0.28);
+  border-radius: 16px;
+  background: rgba(7, 18, 14, 0.58);
+}
+
+.frame-settings h3 {
+  margin: 0 0 12px;
+  color: #70d99a;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.frame-settings h3:not(:first-child) {
+  margin-top: 20px;
+}
+
+.setting-control,
+.size-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: #dff8e7;
+  font-size: 13px;
+}
+
+.setting-control select {
+  min-width: 110px;
+  padding: 7px 9px;
+  border: 1px solid
+    rgba(124, 229, 162, 0.4);
+  border-radius: 8px;
+  color: #eaf5ed;
+  background: #0d2419;
+}
+
+.size-control {
+  flex-wrap: wrap;
+}
+
+.size-control input {
+  width: 100%;
+  accent-color: #53e28a;
+}
+
+.widget-preview {
+  width: var(--widget-size);
+  height: var(--widget-size);
+  margin: 16px auto 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid
+    rgba(117, 231, 161, 0.45);
+  border-radius: 12px;
+  color: #dff8e7;
+  background: linear-gradient(
+    145deg,
+    rgba(23, 82, 57, 0.72),
+    rgba(9, 35, 25, 0.9)
+  );
+  transition:
+    width 0.12s ease,
+    height 0.12s ease;
+}
+
+.widget-preview span {
+  color: #70d99a;
+  font-size: 11px;
+}
+
+.widget-preview strong {
+  font-size: 13px;
+}
+
 .shade-message {
   margin: 16px 0 0;
   color: #8fcea5;
@@ -387,6 +470,7 @@ body {
     0 5px 10px rgba(0, 0, 0, 0.35),
     inset 0 0 0 2px
       rgba(255, 255, 255, 0.15);
+  padding: 0;
 }
 
 .pokeball span {
@@ -409,6 +493,9 @@ body {
   left: 50%;
   bottom: var(--pokeball-offset);
   transform: translate(-50%, 50%);
+  cursor: pointer;
+  touch-action: none;
+  z-index: 30;
 }
 
 .pokeball--left {
@@ -429,7 +516,8 @@ body {
   touch-action: none;
 }
 
-.pokeball--shade-trigger.is-dragging {
+.pokeball--shade-trigger.is-dragging,
+.pokeball--bottom.is-dragging {
   cursor: grabbing;
 }
 
@@ -439,5 +527,14 @@ body {
       2,
       minmax(0, 1fr)
     );
+  }
+
+  .frame-settings {
+    margin-top: 18px;
+    padding: 13px;
+  }
+
+  .shade-header h2 {
+    font-size: 20px;
   }
 }
