@@ -7,8 +7,24 @@ const shade = document.querySelector("#quickShade");
 const backdrop = document.querySelector("#shadeBackdrop");
 const grabber = document.querySelector("#shadeGrabber");
 const topBall = document.querySelector("#shadePokeball");
+const bottomBall = document.querySelector("#homePokeball");
 const closeButton = document.querySelector("#shadeClose");
 const message = document.querySelector("#shadeMessage");
+
+const topColorSelect =
+  document.querySelector("#frameTopColor");
+
+const bottomColorSelect =
+  document.querySelector("#frameBottomColor");
+
+const widgetSizeInput =
+  document.querySelector("#widgetSize");
+
+const widgetSizeValue =
+  document.querySelector("#widgetSizeValue");
+
+const widgetPreview =
+  document.querySelector("#widgetPreview");
 
 const MODES = {
   "desktop-landscape": {
@@ -30,12 +46,27 @@ const MODES = {
   }
 };
 
-const WIDGET_SIZE = 150;
+const DEFAULT_WIDGET_SIZE = 150;
+const MIN_WIDGET_SIZE = 80;
+const MAX_WIDGET_SIZE = 220;
 const WIDGET_GAP = 12;
 const SHADE_RESERVED_HEIGHT = 42;
 const DRAG_THRESHOLD = 50;
 
+const STORAGE_KEYS = {
+  topColor: "pokedex-frame-top-color",
+  bottomColor: "pokedex-frame-bottom-color",
+  widgetSize: "pokedex-frame-widget-size"
+};
+
+const DEFAULT_COLORS = {
+  top: "#c92828",
+  bottom: "#f4f0e7"
+};
+
 let currentMode = "desktop-landscape";
+let currentWidgetSize = DEFAULT_WIDGET_SIZE;
+
 let pageIndex = 0;
 let pageCount = 1;
 let wheelLocked = false;
@@ -52,6 +83,11 @@ let shadePointerId = null;
 let shadeStartY = 0;
 let shadeStartOffset = 0;
 let shadeCurrentOffset = 0;
+
+let bottomBallDragging = false;
+let bottomBallPointerId = null;
+let bottomBallStartY = 0;
+let bottomBallMoved = false;
 
 let layoutInitialized = false;
 let orientationTimer = null;
@@ -94,8 +130,9 @@ function getVirtualMetrics() {
   const safeBottom =
     currentMode === "mobile"
       ? parseFloat(
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--safe-bottom")
+          getComputedStyle(
+            document.documentElement
+          ).getPropertyValue("--safe-bottom")
         ) || 0
       : 0;
 
@@ -112,7 +149,7 @@ function getVirtualMetrics() {
     1,
     Math.floor(
       (availableWidth + WIDGET_GAP) /
-      (WIDGET_SIZE + WIDGET_GAP)
+      (currentWidgetSize + WIDGET_GAP)
     )
   );
 
@@ -120,7 +157,7 @@ function getVirtualMetrics() {
     1,
     Math.floor(
       (availableHeight + WIDGET_GAP) /
-      (WIDGET_SIZE + WIDGET_GAP)
+      (currentWidgetSize + WIDGET_GAP)
     )
   );
 
@@ -166,12 +203,10 @@ function buildWidgetPages(resetPage = true) {
     pageNumber += 1
   ) {
     const page = document.createElement("div");
-
     page.className = "widget-page";
     page.dataset.page = String(pageNumber);
 
     const pageGrid = document.createElement("div");
-
     pageGrid.className = "widget-grid";
     pageGrid.setAttribute(
       "aria-label",
@@ -216,10 +251,10 @@ function updateGridStyles() {
 
   pages.querySelectorAll(".widget-grid").forEach((gridElement) => {
     gridElement.style.gridTemplateColumns =
-      `repeat(${metrics.columns}, ${WIDGET_SIZE}px)`;
+      `repeat(${metrics.columns}, ${currentWidgetSize}px)`;
 
     gridElement.style.gridTemplateRows =
-      `repeat(${metrics.rows}, ${WIDGET_SIZE}px)`;
+      `repeat(${metrics.rows}, ${currentWidgetSize}px)`;
 
     gridElement.style.columnGap =
       `${WIDGET_GAP}px`;
@@ -232,6 +267,11 @@ function updateGridStyles() {
     page.style.paddingBottom =
       `${metrics.safeBottom}px`;
   });
+
+  document.documentElement.style.setProperty(
+    "--widget-size",
+    `${currentWidgetSize}px`
+  );
 }
 
 function goToPage(index, smooth = true) {
@@ -296,10 +336,122 @@ function updateStageScale() {
     `translate(-50%, -50%) scale(${scale})`;
 }
 
+function setFrameColor(
+  property,
+  value,
+  storageKey
+) {
+  document.documentElement.style.setProperty(
+    property,
+    value
+  );
+
+  localStorage.setItem(storageKey, value);
+}
+
+function loadSettings() {
+  const savedTopColor =
+    localStorage.getItem(
+      STORAGE_KEYS.topColor
+    ) || DEFAULT_COLORS.top;
+
+  const savedBottomColor =
+    localStorage.getItem(
+      STORAGE_KEYS.bottomColor
+    ) || DEFAULT_COLORS.bottom;
+
+  const savedWidgetSize = Number(
+    localStorage.getItem(
+      STORAGE_KEYS.widgetSize
+    )
+  );
+
+  currentWidgetSize =
+    Number.isFinite(savedWidgetSize) &&
+    savedWidgetSize >= MIN_WIDGET_SIZE &&
+    savedWidgetSize <= MAX_WIDGET_SIZE
+      ? savedWidgetSize
+      : DEFAULT_WIDGET_SIZE;
+
+  setFrameColor(
+    "--frame-top",
+    savedTopColor,
+    STORAGE_KEYS.topColor
+  );
+
+  setFrameColor(
+    "--frame-bottom",
+    savedBottomColor,
+    STORAGE_KEYS.bottomColor
+  );
+
+  if (topColorSelect) {
+    topColorSelect.value = savedTopColor;
+  }
+
+  if (bottomColorSelect) {
+    bottomColorSelect.value =
+      savedBottomColor;
+  }
+
+  if (widgetSizeInput) {
+    widgetSizeInput.value =
+      String(currentWidgetSize);
+  }
+
+  updateWidgetSizeInterface();
+}
+
+function updateWidgetSizeInterface() {
+  if (widgetSizeValue) {
+    widgetSizeValue.textContent =
+      `${currentWidgetSize} px`;
+  }
+
+  if (widgetPreview) {
+    widgetPreview.style.width =
+      `${currentWidgetSize}px`;
+
+    widgetPreview.style.height =
+      `${currentWidgetSize}px`;
+  }
+
+  document.documentElement.style.setProperty(
+    "--widget-size",
+    `${currentWidgetSize}px`
+  );
+}
+
+function applyWidgetSize(value) {
+  const nextSize = Number(value);
+
+  if (
+    !Number.isFinite(nextSize) ||
+    nextSize < MIN_WIDGET_SIZE ||
+    nextSize > MAX_WIDGET_SIZE
+  ) {
+    return;
+  }
+
+  currentWidgetSize = nextSize;
+
+  localStorage.setItem(
+    STORAGE_KEYS.widgetSize,
+    String(currentWidgetSize)
+  );
+
+  updateWidgetSizeInterface();
+
+  pageIndex = 0;
+  buildWidgetPages(true);
+}
+
 function initializeLayout() {
   if (layoutInitialized) {
     return;
   }
+
+  loadSettings();
 
   currentMode = detectMode();
   updateStageScale();
@@ -391,9 +543,11 @@ function endPageDrag(event) {
   }
 
   pageDragging = false;
+
   pages.releasePointerCapture?.(
     pagePointerId
   );
+
   pages.style.scrollBehavior = "smooth";
 
   if (
@@ -434,10 +588,12 @@ function beginShadeDrag(event) {
   shadeDragging = true;
   shadePointerId = event.pointerId;
   shadeStartY = event.clientY;
+
   shadeStartOffset = shadeOpen
     ? 0
     : -shade.offsetHeight +
       SHADE_RESERVED_HEIGHT;
+
   shadeCurrentOffset = shadeStartOffset;
 
   shade.style.transition = "none";
@@ -508,6 +664,99 @@ function endShadeDrag(event) {
   }
 }
 
+function goHome() {
+  if (shadeOpen) {
+    setOpen(false);
+    return;
+  }
+
+  goToPage(0);
+}
+
+function beginBottomBallDrag(event) {
+  bottomBallDragging = true;
+  bottomBallPointerId = event.pointerId;
+  bottomBallStartY = event.clientY;
+  bottomBallMoved = false;
+
+  bottomBall.setPointerCapture?.(
+    event.pointerId
+  );
+
+  bottomBall.classList.add("is-dragging");
+  event.preventDefault();
+}
+
+function moveBottomBallDrag(event) {
+  if (!bottomBallDragging) {
+    return;
+  }
+
+  if (event.pointerId !== bottomBallPointerId) {
+    return;
+  }
+
+  const movement =
+    event.clientY - bottomBallStartY;
+
+  if (Math.abs(movement) >= 8) {
+    bottomBallMoved = true;
+  }
+
+  if (shadeOpen && movement < -8) {
+    const progress = Math.min(
+      1,
+      Math.abs(movement) /
+        Math.max(1, shade.offsetHeight)
+    );
+
+    shade.style.transition = "none";
+    shade.style.transform =
+      `translateY(${
+        -progress * shade.offsetHeight
+      }px)`;
+  }
+
+  event.preventDefault();
+}
+
+function endBottomBallDrag(event) {
+  if (!bottomBallDragging) {
+    return;
+  }
+
+  if (
+    event.pointerId != null &&
+    event.pointerId !== bottomBallPointerId
+  ) {
+    return;
+  }
+
+  const movement =
+    event.clientY - bottomBallStartY;
+
+  bottomBallDragging = false;
+  bottomBall.releasePointerCapture?.(
+    bottomBallPointerId
+  );
+
+  bottomBall.classList.remove(
+    "is-dragging"
+  );
+
+  shade.style.transition = "";
+
+  if (shadeOpen && movement < -20) {
+    setOpen(false);
+  } else if (!bottomBallMoved) {
+    goHome();
+  } else if (!shadeOpen) {
+    goHome();
+  }
+
+  bottomBallPointerId = null;
+}
+
 function handleOrientationChange() {
   clearTimeout(orientationTimer);
 
@@ -525,6 +774,35 @@ function handleOrientationChange() {
     buildWidgetPages(true);
   }, 250);
 }
+
+topColorSelect?.addEventListener(
+  "change",
+  (event) => {
+    setFrameColor(
+      "--frame-top",
+      event.target.value,
+      STORAGE_KEYS.topColor
+    );
+  }
+);
+
+bottomColorSelect?.addEventListener(
+  "change",
+  (event) => {
+    setFrameColor(
+      "--frame-bottom",
+      event.target.value,
+      STORAGE_KEYS.bottomColor
+    );
+  }
+);
+
+widgetSizeInput?.addEventListener(
+  "input",
+  (event) => {
+    applyWidgetSize(event.target.value);
+  }
+);
 
 pages?.addEventListener(
   "wheel",
@@ -566,9 +844,20 @@ pages?.addEventListener(
   );
 });
 
+bottomBall?.addEventListener(
+  "pointerdown",
+  beginBottomBallDrag
+);
+
 document.addEventListener(
   "pointermove",
   moveShadeDrag,
+  { passive: false }
+);
+
+document.addEventListener(
+  "pointermove",
+  moveBottomBallDrag,
   { passive: false }
 );
 
@@ -578,13 +867,29 @@ document.addEventListener(
 );
 
 document.addEventListener(
+  "pointerup",
+  endBottomBallDrag
+);
+
+document.addEventListener(
   "pointercancel",
   endShadeDrag
+);
+
+document.addEventListener(
+  "pointercancel",
+  endBottomBallDrag
 );
 
 topBall.addEventListener("click", () => {
   if (!shadeDragging) {
     setOpen(!shadeOpen);
+  }
+});
+
+bottomBall?.addEventListener("click", () => {
+  if (!bottomBallMoved) {
+    goHome();
   }
 });
 
