@@ -28,8 +28,9 @@ const MIN_WIDGET_SIZE = 80;
 const MAX_WIDGET_SIZE = 220;
 const WIDGET_GAP = 12;
 const SHADE_RESERVED_HEIGHT = 42;
-const DRAG_THRESHOLD = 45;
-const SHADE_CLOSE_THRESHOLD = 70;
+const PAGE_SWIPE_THRESHOLD = 55;
+const SHADE_CLOSE_THRESHOLD = 60;
+const SWIPE_COOLDOWN = 500;
 
 const STORAGE_KEYS = {
   topColor: "pokedex-frame-top-color",
@@ -42,6 +43,7 @@ let currentWidgetSize = DEFAULT_WIDGET_SIZE;
 let pageIndex = 0;
 let pageCount = 1;
 let wheelLocked = false;
+let pageSwipeLocked = false;
 
 let pageDragging = false;
 let pagePointerId = null;
@@ -55,6 +57,11 @@ let shadePointerId = null;
 let shadeStartY = 0;
 let shadeStartOffset = 0;
 let shadeCurrentOffset = 0;
+
+let bottomBallDragging = false;
+let bottomBallPointerId = null;
+let bottomBallStartY = 0;
+let bottomBallMoved = false;
 
 function isTouchFirst() {
   return window.matchMedia("(pointer: coarse)").matches ||
@@ -129,12 +136,19 @@ function goToPage(index, smooth = true) {
 }
 
 function changePage(direction) {
+  if (pageSwipeLocked) return;
   const next = pageIndex + Math.sign(direction);
-  if (next !== pageIndex) goToPage(next);
+  if (next === pageIndex) return;
+
+  pageSwipeLocked = true;
+  goToPage(next);
+  window.setTimeout(() => {
+    pageSwipeLocked = false;
+  }, SWIPE_COOLDOWN);
 }
 
 function updatePageIndex() {
-  if (pages?.clientWidth) {
+  if (pages?.clientWidth && !pageDragging) {
     pageIndex = Math.round(pages.scrollLeft / pages.clientWidth);
   }
 }
@@ -213,7 +227,7 @@ function beginShadeDrag(event) {
   shadeStartOffset = shadeOpen ? 0 : -shade.offsetHeight + SHADE_RESERVED_HEIGHT;
   shadeCurrentOffset = shadeStartOffset;
   shade.style.transition = "none";
-  grabber?.setPointerCapture?.(event.pointerId);
+  event.currentTarget?.setPointerCapture?.(event.pointerId);
   event.preventDefault();
 }
 
@@ -241,10 +255,39 @@ function endShadeDrag(event) {
     setOpen(false);
   } else if (!shadeOpen && movement >= SHADE_CLOSE_THRESHOLD) {
     setOpen(true);
-  } else if (!shadeOpen && movement > 8) {
-    setOpen(true);
   } else {
     setOpen(shadeOpen);
+  }
+}
+
+function beginBottomBallDrag(event) {
+  if (!shadeOpen) return;
+
+  bottomBallDragging = true;
+  bottomBallPointerId = event.pointerId;
+  bottomBallStartY = event.clientY;
+  bottomBallMoved = false;
+  bottomBall.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function moveBottomBallDrag(event) {
+  if (!bottomBallDragging || event.pointerId !== bottomBallPointerId) return;
+
+  const movement = event.clientY - bottomBallStartY;
+  if (Math.abs(movement) >= 10) bottomBallMoved = true;
+  event.preventDefault();
+}
+
+function endBottomBallDrag(event) {
+  if (!bottomBallDragging || (event.pointerId != null && event.pointerId !== bottomBallPointerId)) return;
+
+  const movement = event.clientY - bottomBallStartY;
+  bottomBallDragging = false;
+  bottomBallPointerId = null;
+
+  if (movement <= -SHADE_CLOSE_THRESHOLD) {
+    setOpen(false);
   }
 }
 
@@ -278,7 +321,7 @@ function endPageDrag(event) {
   pages.releasePointerCapture?.(pagePointerId);
   pages.style.scrollBehavior = "smooth";
 
-  if (Math.abs(pageDragDistance) >= DRAG_THRESHOLD) {
+  if (Math.abs(pageDragDistance) >= PAGE_SWIPE_THRESHOLD) {
     changePage(pageDragDistance < 0 ? 1 : -1);
   } else {
     goToPage(pageIndex);
@@ -314,7 +357,7 @@ pages?.addEventListener("wheel", (event) => {
   event.preventDefault();
   wheelLocked = true;
   changePage(delta > 0 ? 1 : -1);
-  setTimeout(() => { wheelLocked = false; }, 450);
+  setTimeout(() => { wheelLocked = false; }, SWIPE_COOLDOWN);
 }, { passive: false });
 
 pages?.addEventListener("pointerdown", beginPageDrag);
@@ -324,10 +367,14 @@ pages?.addEventListener("pointercancel", endPageDrag);
 
 grabber?.addEventListener("pointerdown", beginShadeDrag);
 topBall?.addEventListener("pointerdown", beginShadeDrag);
+bottomBall?.addEventListener("pointerdown", beginBottomBallDrag);
 
 document.addEventListener("pointermove", moveShadeDrag, { passive: false });
+document.addEventListener("pointermove", moveBottomBallDrag, { passive: false });
 document.addEventListener("pointerup", endShadeDrag);
+document.addEventListener("pointerup", endBottomBallDrag);
 document.addEventListener("pointercancel", endShadeDrag);
+document.addEventListener("pointercancel", endBottomBallDrag);
 
 topBall?.addEventListener("click", () => {
   if (!shadeDragging) setOpen(!shadeOpen);
@@ -335,7 +382,9 @@ topBall?.addEventListener("click", () => {
 
 closeButton?.addEventListener("click", () => setOpen(false));
 backdrop?.addEventListener("click", () => setOpen(false));
-bottomBall?.addEventListener("click", goHome);
+bottomBall?.addEventListener("click", () => {
+  if (!bottomBallMoved) goHome();
+});
 
 grabber?.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
