@@ -10,6 +10,7 @@
   --pokeball-offset: 16px;
   --widget-size: 150px;
   --widget-gap: 12px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
@@ -23,19 +24,33 @@ body {
   margin: 0;
 }
 
+html {
+  overflow: hidden;
+  background: #111;
+}
+
 body {
   overflow: hidden;
   background: #111;
   color: #eaf5ed;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 .device {
   position: relative;
-  width: 100vw;
-  height: 100vh;
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
   overflow: hidden;
   isolation: isolate;
   background: linear-gradient(
@@ -45,7 +60,8 @@ body {
   );
   border: clamp(1px, 0.3vw, 3px) solid #210f12;
   box-shadow:
-    inset 0 0 0 clamp(1px, 0.3vw, 3px) rgba(255, 255, 255, 0.13),
+    inset 0 0 0 clamp(1px, 0.3vw, 3px)
+      rgba(255, 255, 255, 0.13),
     inset 0 0 28px rgba(0, 0, 0, 0.32);
 }
 
@@ -69,69 +85,70 @@ body {
 
 .device::after {
   inset: var(--frame);
-  border: clamp(1px, 0.3vw, 2px) solid rgba(24, 51, 38, 0.5);
+  border: clamp(1px, 0.3vw, 2px) solid
+    rgba(24, 51, 38, 0.5);
   border-radius: 18px;
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 24px
+    rgba(0, 0, 0, 0.3);
 }
 
 .display-shell {
   position: absolute;
   inset: var(--frame);
   z-index: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: var(--shell-border) solid #171e1a;
   border-radius: 16px;
   background: #07120e;
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.28),
-    inset 0 0 0 2px rgba(140, 255, 185, 0.08);
+    inset 0 0 0 2px
+      rgba(140, 255, 185, 0.08);
 }
 
 .stage-viewport {
   position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background: #07120e;
-  display: grid;
-  place-items: center;
+  isolation: isolate;
 }
 
 .virtual-stage {
   position: absolute;
   top: 50%;
   left: 50%;
+  display: grid;
+  grid-template-rows: 1fr;
   transform-origin: center center;
   background:
-    linear-gradient(rgba(29, 137, 92, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(29, 137, 92, 0.035) 1px, transparent 1px),
+    linear-gradient(
+      rgba(29, 137, 92, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(29, 137, 92, 0.035) 1px,
+      transparent 1px
+    ),
     radial-gradient(
       circle at 20% 10%,
       rgba(38, 193, 121, 0.1),
       transparent 32%
     ),
     #07120e;
-  background-size: 22px 22px, 22px 22px, auto, auto;
-  box-shadow: inset 0 0 0 1px rgba(91, 165, 119, 0.13);
-}
-
-.virtual-stage[data-mode="desktop-landscape"],
-.virtual-stage[data-mode="desktop-portrait"],
-.virtual-stage[data-mode="mobile"] {
-  padding: 28px;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 16px;
-}
-
-.virtual-stage[data-mode="desktop-portrait"] {
-  padding: 24px;
-  gap: 14px;
-}
-
-.virtual-stage[data-mode="mobile"] {
-  padding: 22px;
-  gap: 16px;
+  background-size:
+    22px 22px,
+    22px 22px,
+    auto,
+    auto;
+  box-shadow: inset 0 0 0 1px
+    rgba(91, 165, 119, 0.13);
 }
 
 .screen-header,
@@ -142,53 +159,56 @@ body {
 .widget-pages {
   display: flex;
   width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  height: 100%;
   overflow-x: hidden;
   overflow-y: hidden;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
   touch-action: pan-y;
 }
 
 .widget-page {
   flex: 0 0 100%;
   width: 100%;
+  height: 100%;
   min-width: 100%;
   min-height: 0;
-  height: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: grid;
+  place-items: center;
   overflow: hidden;
   scroll-snap-align: start;
+  padding-bottom: var(--safe-bottom);
 }
 
 .widget-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, var(--widget-size));
-  grid-auto-rows: var(--widget-size);
-  gap: var(--widget-gap);
-  width: 100%;
-  height: 100%;
+  width: max-content;
+  height: max-content;
   min-width: 0;
   min-height: 0;
-  align-content: start;
-  justify-content: start;
-  overflow: hidden;
+  grid-auto-flow: row;
+  gap: var(--widget-gap);
+  align-content: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 .widget {
   width: var(--widget-size);
   height: var(--widget-size);
+  min-width: var(--widget-size);
+  min-height: var(--widget-size);
   aspect-ratio: 1;
   padding: 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border: 1px solid rgba(117, 231, 161, 0.32);
+  overflow: hidden;
+  border: 1px solid
+    rgba(117, 231, 161, 0.32);
   border-radius: 14px;
   background: linear-gradient(
     145deg,
@@ -196,7 +216,8 @@ body {
     rgba(9, 35, 25, 0.9)
   );
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px
+      rgba(255, 255, 255, 0.035),
     0 5px 14px rgba(0, 0, 0, 0.18);
 }
 
@@ -208,6 +229,7 @@ body {
 
 .widget strong {
   font-size: 16px;
+  overflow-wrap: anywhere;
 }
 
 .shade-backdrop {
@@ -225,16 +247,26 @@ body {
 .quick-shade {
   position: absolute;
   z-index: 21;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  min-height: 100%;
-  padding: 58px 22px 30px;
+  min-width: 0;
+  min-height: 0;
+  padding:
+    calc(58px + env(safe-area-inset-top, 0px))
+    22px
+    calc(30px + var(--safe-bottom));
   border-radius: 0;
-  background: linear-gradient(145deg, #182f27, #07120e 82%);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48);
-  transform: translateY(calc(-100% + var(--shade-grabber-height)));
+  background: linear-gradient(
+    145deg,
+    #182f27,
+    #07120e 82%
+  );
+  box-shadow: 0 12px 28px
+    rgba(0, 0, 0, 0.48);
+  transform: translateY(
+    calc(-100% + var(--shade-grabber-height))
+  );
   transition: transform 0.24s ease;
   touch-action: none;
 }
@@ -263,7 +295,7 @@ body {
 .shade-header {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
   gap: 16px;
 }
 
@@ -289,7 +321,10 @@ body {
 
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(100px, 1fr)
+  );
   gap: 12px;
   margin-top: 20px;
 }
@@ -301,7 +336,8 @@ body {
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  border: 1px solid rgba(124, 229, 162, 0.3);
+  border: 1px solid
+    rgba(124, 229, 162, 0.3);
   border-radius: 16px;
   color: #dff8e7;
   background: #0d2419;
@@ -349,7 +385,8 @@ body {
   );
   box-shadow:
     0 5px 10px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+    inset 0 0 0 2px
+      rgba(255, 255, 255, 0.15);
 }
 
 .pokeball span {
@@ -358,7 +395,8 @@ body {
   border: var(--pokeball-border) solid #171717;
   border-radius: 50%;
   background: #eee9df;
-  box-shadow: inset 0 0 0 clamp(1px, 0.3vw, 3px) #fff;
+  box-shadow: inset 0 0 0
+    clamp(1px, 0.3vw, 3px) #fff;
 }
 
 .pokeball--top {
@@ -386,9 +424,9 @@ body {
 }
 
 .pokeball--shade-trigger {
+  z-index: 30;
   cursor: grab;
   touch-action: none;
-  z-index: 30;
 }
 
 .pokeball--shade-trigger.is-dragging {
@@ -397,6 +435,9 @@ body {
 
 @media (max-width: 700px) {
   .quick-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
   }
 }
