@@ -27,7 +27,12 @@ body {
   min-height: 320px;
   overflow: hidden;
   isolation: isolate;
-  background: linear-gradient(90deg, var(--red) 0 48%, #121615 48% 59%, var(--white) 59% 100%);
+  background:
+    linear-gradient(135deg, transparent 0 46%, var(--red) 46% 50%, transparent 50%) top center / min(18vw, 260px) var(--frame) no-repeat,
+    linear-gradient(45deg, transparent 0 50%, var(--white) 50% 54%, transparent 54%) top center / min(18vw, 260px) var(--frame) no-repeat,
+    linear-gradient(45deg, transparent 0 46%, var(--red) 46% 50%, transparent 50%) bottom center / min(18vw, 260px) var(--frame) no-repeat,
+    linear-gradient(135deg, transparent 0 50%, var(--white) 50% 54%, transparent 54%) bottom center / min(18vw, 260px) var(--frame) no-repeat,
+    linear-gradient(90deg, var(--red) 0 50%, var(--white) 50% 100%);
 }
 
 .outer-shell {
@@ -156,7 +161,14 @@ h1 { margin: 0; font-size: clamp(14px, 2.6vmin, 32px); font-weight: 760; letter-
     --ball: clamp(32px, 7.1vmin, 52px);
     --screen-pad: clamp(12px, 3.2vmin, 20px);
   }
-  .device { background: linear-gradient(180deg, var(--red) 0 48%, #121615 48% 59%, var(--white) 59% 100%); }
+  .device {
+    background:
+      linear-gradient(135deg, transparent 0 46%, var(--red) 46% 50%, transparent 50%) left center / var(--frame) min(18vh, 260px) no-repeat,
+      linear-gradient(45deg, transparent 0 50%, var(--white) 50% 54%, transparent 54%) left center / var(--frame) min(18vh, 260px) no-repeat,
+      linear-gradient(45deg, transparent 0 46%, var(--red) 46% 50%, transparent 50%) right center / var(--frame) min(18vh, 260px) no-repeat,
+      linear-gradient(135deg, transparent 0 50%, var(--white) 50% 54%, transparent 54%) right center / var(--frame) min(18vh, 260px) no-repeat,
+      linear-gradient(180deg, var(--red) 0 50%, var(--white) 50% 100%);
+  }
   .widget-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(7px, 1.6vmin, 12px); }
   .widget { padding: clamp(7px, 2vmin, 12px); }
   .leds--left { left: calc(var(--frame) * .22); bottom: calc(var(--frame) * .72); flex-direction: column; }
