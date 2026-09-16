@@ -987,3 +987,20 @@ document
   });
 
 document
+  .querySelector("#settingsButton")
+  ?.addEventListener(
+    "click",
+    () => {
+      message.textContent =
+        "Impostazioni: pannello dimostrativo";
+    }
+  );
+
+window.addEventListener(
+  "orientationchange",
+  handleOrientationChange,
+  { passive: true }
+);
+
+initializeLayout();
+setOpen(false);
