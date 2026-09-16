@@ -346,7 +346,10 @@ function setFrameColor(
     value
   );
 
-  localStorage.setItem(storageKey, value);
+  localStorage.setItem(
+    storageKey,
+    value
+  );
 }
 
 function loadSettings() {
@@ -486,6 +489,14 @@ function handleWheel(event) {
 }
 
 function beginPageDrag(event) {
+  if (
+    event.target.closest(
+      ".quick-shade, .shade-grabber, .shade-close, .frame-settings, .frame-settings *"
+    )
+  ) {
+    return;
+  }
+
   if (!pages) {
     return;
   }
@@ -582,6 +593,9 @@ function setOpen(open) {
   shade.style.transform = shadeOpen
     ? "translateY(0)"
     : "translateY(calc(-100% + var(--shade-grabber-height)))";
+
+  shade.style.pointerEvents =
+    shadeOpen ? "auto" : "none";
 }
 
 function beginShadeDrag(event) {
@@ -692,7 +706,9 @@ function moveBottomBallDrag(event) {
     return;
   }
 
-  if (event.pointerId !== bottomBallPointerId) {
+  if (
+    event.pointerId !== bottomBallPointerId
+  ) {
     return;
   }
 
@@ -736,6 +752,7 @@ function endBottomBallDrag(event) {
     event.clientY - bottomBallStartY;
 
   bottomBallDragging = false;
+
   bottomBall.releasePointerCapture?.(
     bottomBallPointerId
   );
@@ -776,8 +793,17 @@ function handleOrientationChange() {
 }
 
 topColorSelect?.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.stopPropagation();
+  }
+);
+
+topColorSelect?.addEventListener(
   "change",
   (event) => {
+    event.stopPropagation();
+
     setFrameColor(
       "--frame-top",
       event.target.value,
@@ -787,8 +813,17 @@ topColorSelect?.addEventListener(
 );
 
 bottomColorSelect?.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.stopPropagation();
+  }
+);
+
+bottomColorSelect?.addEventListener(
   "change",
   (event) => {
+    event.stopPropagation();
+
     setFrameColor(
       "--frame-bottom",
       event.target.value,
@@ -798,8 +833,24 @@ bottomColorSelect?.addEventListener(
 );
 
 widgetSizeInput?.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.stopPropagation();
+  }
+);
+
+widgetSizeInput?.addEventListener(
   "input",
   (event) => {
+    event.stopPropagation();
+    applyWidgetSize(event.target.value);
+  }
+);
+
+widgetSizeInput?.addEventListener(
+  "change",
+  (event) => {
+    event.stopPropagation();
     applyWidgetSize(event.target.value);
   }
 );
@@ -936,17 +987,3 @@ document
   });
 
 document
-  .querySelector("#settingsButton")
-  ?.addEventListener("click", () => {
-    message.textContent =
-      "Impostazioni: pannello dimostrativo";
-  });
-
-window.addEventListener(
-  "orientationchange",
-  handleOrientationChange,
-  { passive: true }
-);
-
-initializeLayout();
-setOpen(false);
