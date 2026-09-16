@@ -11,15 +11,25 @@
   <main class="device" aria-label="Demo cornice Pokédex responsive">
     <section class="display-shell">
       <div class="stage-viewport" id="stageViewport">
-        <button class="stage-handle" id="stageHandle" type="button" aria-label="Trascina per spostare l’area widget"><span></span></button>
         <div class="virtual-stage" id="virtualStage">
           <header class="screen-header"><div><p class="eyebrow">FRAME PROTOTYPE</p><h1>Area widget</h1></div><span class="status"><i></i> ONLINE</span></header>
           <div class="widget-grid" aria-label="Griglia di widget dimostrativi">
-            <article class="widget widget--large"><span>1×1</span><strong>Widget principale</strong></article>
-            <article class="widget"><span>1×1</span><strong>Modulo 02</strong></article><article class="widget"><span>1×1</span><strong>Modulo 03</strong></article><article class="widget"><span>1×1</span><strong>Modulo 04</strong></article><article class="widget"><span>1×1</span><strong>Modulo 05</strong></article><article class="widget"><span>1×1</span><strong>Modulo 06</strong></article><article class="widget"><span>1×1</span><strong>Modulo 07</strong></article><article class="widget"><span>1×1</span><strong>Modulo 08</strong></article><article class="widget"><span>1×1</span><strong>Modulo 09</strong></article><article class="widget"><span>1×1</span><strong>Modulo 10</strong></article><article class="widget"><span>1×1</span><strong>Modulo 11</strong></article><article class="widget"><span>1×1</span><strong>Modulo 12</strong></article>
+            <article class="widget widget--large"><span>1×1</span><strong>Widget principale</strong></article><article class="widget"><span>1×1</span><strong>Modulo 02</strong></article><article class="widget"><span>1×1</span><strong>Modulo 03</strong></article><article class="widget"><span>1×1</span><strong>Modulo 04</strong></article><article class="widget"><span>1×1</span><strong>Modulo 05</strong></article><article class="widget"><span>1×1</span><strong>Modulo 06</strong></article><article class="widget"><span>1×1</span><strong>Modulo 07</strong></article><article class="widget"><span>1×1</span><strong>Modulo 08</strong></article><article class="widget"><span>1×1</span><strong>Modulo 09</strong></article><article class="widget"><span>1×1</span><strong>Modulo 10</strong></article><article class="widget"><span>1×1</span><strong>Modulo 11</strong></article><article class="widget"><span>1×1</span><strong>Modulo 12</strong></article>
           </div>
           <footer class="screen-footer" id="diagnostics" aria-live="polite"></footer>
         </div>
+        <div class="shade-backdrop" id="shadeBackdrop" hidden></div>
+        <section class="quick-shade" id="quickShade" aria-label="Pannello impostazioni rapide" aria-hidden="true">
+          <div class="shade-handle" id="shadeHandle" role="button" tabindex="0" aria-label="Apri o chiudi impostazioni rapide"><span></span></div>
+          <header class="shade-header"><div><p class="shade-date">POKÉDEX SYSTEM</p><h2>Impostazioni rapide</h2></div><button class="shade-close" id="shadeClose" type="button" aria-label="Chiudi pannello">×</button></header>
+          <div class="quick-grid">
+            <button class="quick-tile is-active" data-toggle="sound" type="button"><span class="quick-icon">♫</span><strong>Suoni</strong><small>Attivi</small></button>
+            <button class="quick-tile" data-toggle="vibration" type="button"><span class="quick-icon">⌁</span><strong>Vibrazione</strong><small>Disattiva</small></button>
+            <button class="quick-tile is-active" data-toggle="brightness" type="button"><span class="quick-icon">☼</span><strong>Luminosità</strong><small>Alta</small></button>
+            <button class="quick-tile" id="settingsButton" type="button"><span class="quick-icon">⚙</span><strong>Impostazioni</strong><small>Apri</small></button>
+          </div>
+          <p class="shade-message" id="shadeMessage" aria-live="polite">Sistema pronto</p>
+        </section>
       </div>
     </section>
     <div class="pokeball pokeball--top" aria-hidden="true"><span></span></div><div class="pokeball pokeball--bottom" aria-hidden="true"><span></span></div><div class="pokeball pokeball--left" aria-hidden="true"><span></span></div><div class="pokeball pokeball--right" aria-hidden="true"><span></span></div>
