@@ -91,13 +91,22 @@ function getVirtualMetrics() {
         ? 24
         : 28;
 
+  const safeBottom =
+    currentMode === "mobile"
+      ? parseFloat(
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--safe-bottom")
+        ) || 0
+      : 0;
+
   const availableWidth =
     config.width - padding * 2;
 
   const availableHeight =
     config.height -
     padding * 2 -
-    SHADE_RESERVED_HEIGHT;
+    SHADE_RESERVED_HEIGHT -
+    safeBottom;
 
   const columns = Math.max(
     1,
@@ -119,7 +128,8 @@ function getVirtualMetrics() {
     columns,
     rows,
     capacity: columns * rows,
-    padding
+    padding,
+    safeBottom
   };
 }
 
@@ -156,10 +166,12 @@ function buildWidgetPages(resetPage = true) {
     pageNumber += 1
   ) {
     const page = document.createElement("div");
+
     page.className = "widget-page";
     page.dataset.page = String(pageNumber);
 
     const pageGrid = document.createElement("div");
+
     pageGrid.className = "widget-grid";
     pageGrid.setAttribute(
       "aria-label",
@@ -214,6 +226,11 @@ function updateGridStyles() {
 
     gridElement.style.rowGap =
       `${WIDGET_GAP}px`;
+  });
+
+  pages.querySelectorAll(".widget-page").forEach((page) => {
+    page.style.paddingBottom =
+      `${metrics.safeBottom}px`;
   });
 }
 
@@ -502,12 +519,10 @@ function handleOrientationChange() {
     }
 
     currentMode = nextMode;
-    layoutInitialized = false;
     pageIndex = 0;
 
     updateStageScale();
     buildWidgetPages(true);
-    layoutInitialized = true;
   }, 250);
 }
 
