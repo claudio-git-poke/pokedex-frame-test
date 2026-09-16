@@ -96,40 +96,14 @@ function detectMode() {
 
 function getVirtualMetrics() {
   const config = MODES[currentMode];
-  const viewportSize = getViewportSize();
 
-  let availableWidth =
+  const availableWidth =
     config.width - config.padding * 2;
 
-  let availableHeight =
+  const availableHeight =
     config.height -
     config.padding * 2 -
     SHADE_RESERVED_HEIGHT;
-
-  if (currentMode === "mobile") {
-    const mobileScale = Math.min(
-      1,
-      viewportSize.width / config.width
-    );
-
-    const visibleVirtualWidth =
-      viewportSize.width / mobileScale;
-
-    const visibleVirtualHeight =
-      viewportSize.height / mobileScale;
-
-    availableWidth = Math.max(
-      0,
-      visibleVirtualWidth - config.padding * 2
-    );
-
-    availableHeight = Math.max(
-      0,
-      visibleVirtualHeight -
-        config.padding * 2 -
-        SHADE_RESERVED_HEIGHT
-    );
-  }
 
   const columns = Math.max(
     1,
@@ -228,14 +202,18 @@ function updatePageLayout() {
     pageGrid.style.height =
       `calc(100% - ${SHADE_RESERVED_HEIGHT}px)`;
 
+    pageGrid.style.minWidth = "0";
+    pageGrid.style.maxWidth = "100%";
     pageGrid.style.overflow = "hidden";
   });
 
   pages.querySelectorAll(".widget-page").forEach((page) => {
     page.style.width = "100%";
     page.style.minWidth = "100%";
+    page.style.maxWidth = "100%";
     page.style.paddingTop =
       `${SHADE_RESERVED_HEIGHT}px`;
+    page.style.overflow = "hidden";
   });
 }
 
@@ -286,28 +264,28 @@ function updateStageScale() {
   }
 
   const config = MODES[currentMode];
-  const viewportSize = getViewportSize();
   const rect = viewport.getBoundingClientRect();
+  const viewportSize = getViewportSize();
 
-  const availableWidth = Math.min(
+  const visibleWidth = Math.min(
     rect.width,
     viewportSize.width
   );
 
-  const availableHeight = Math.min(
+  const visibleHeight = Math.min(
     rect.height,
     viewportSize.height
   );
 
   const fitScale = Math.min(
-    availableWidth / config.width,
-    availableHeight / config.height
+    visibleWidth / config.width,
+    visibleHeight / config.height
   );
 
   const scale = currentMode === "mobile"
     ? Math.min(
-        1,
-        availableWidth / config.width
+        fitScale,
+        1
       )
     : Math.min(
         fitScale,
