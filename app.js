@@ -28,7 +28,8 @@ const MIN_WIDGET_SIZE = 80;
 const MAX_WIDGET_SIZE = 220;
 const WIDGET_GAP = 12;
 const SHADE_RESERVED_HEIGHT = 42;
-const DRAG_THRESHOLD = 50;
+const DRAG_THRESHOLD = 45;
+const SHADE_CLOSE_THRESHOLD = 70;
 
 const STORAGE_KEYS = {
   topColor: "pokedex-frame-top-color",
@@ -55,11 +56,6 @@ let shadeStartY = 0;
 let shadeStartOffset = 0;
 let shadeCurrentOffset = 0;
 
-let bottomBallDragging = false;
-let bottomBallPointerId = null;
-let bottomBallStartY = 0;
-let bottomBallMoved = false;
-
 function isTouchFirst() {
   return window.matchMedia("(pointer: coarse)").matches ||
     window.matchMedia("(hover: none)").matches ||
@@ -73,12 +69,12 @@ function detectMode() {
 
 function getVirtualMetrics() {
   const config = MODES[currentMode];
-  const padding = currentMode === "mobile" ? 22 : currentMode === "desktop-portrait" ? 24 : 28;
+  const padding = currentMode === "mobile" ? 18 : currentMode === "desktop-portrait" ? 24 : 28;
   const availableWidth = config.width - padding * 2;
-  const availableHeight = config.height - padding * 2 - SHADE_RESERVED_HEIGHT;
+  const availableHeight = config.height - padding * 2;
   const columns = Math.max(1, Math.floor((availableWidth + WIDGET_GAP) / (currentWidgetSize + WIDGET_GAP)));
   const rows = Math.max(1, Math.floor((availableHeight + WIDGET_GAP) / (currentWidgetSize + WIDGET_GAP)));
-  return { columns, rows, capacity: columns * rows, padding };
+  return { columns, rows, capacity: columns * rows };
 }
 
 function getOriginalWidgets() {
@@ -135,6 +131,12 @@ function goToPage(index, smooth = true) {
 function changePage(direction) {
   const next = pageIndex + Math.sign(direction);
   if (next !== pageIndex) goToPage(next);
+}
+
+function updatePageIndex() {
+  if (pages?.clientWidth) {
+    pageIndex = Math.round(pages.scrollLeft / pages.clientWidth);
+  }
 }
 
 function updateStageScale() {
@@ -211,28 +213,43 @@ function beginShadeDrag(event) {
   shadeStartOffset = shadeOpen ? 0 : -shade.offsetHeight + SHADE_RESERVED_HEIGHT;
   shadeCurrentOffset = shadeStartOffset;
   shade.style.transition = "none";
+  grabber?.setPointerCapture?.(event.pointerId);
   event.preventDefault();
 }
 
 function moveShadeDrag(event) {
   if (!shadeDragging || event.pointerId !== shadePointerId) return;
-  shadeCurrentOffset = Math.max(-shade.offsetHeight + SHADE_RESERVED_HEIGHT, Math.min(0, shadeStartOffset + event.clientY - shadeStartY));
+
+  shadeCurrentOffset = Math.max(
+    -shade.offsetHeight + SHADE_RESERVED_HEIGHT,
+    Math.min(0, shadeStartOffset + event.clientY - shadeStartY)
+  );
+
   shade.style.transform = `translateY(${shadeCurrentOffset}px)`;
   event.preventDefault();
 }
 
 function endShadeDrag(event) {
   if (!shadeDragging || (event.pointerId != null && event.pointerId !== shadePointerId)) return;
+
   const movement = event.clientY - shadeStartY;
   shadeDragging = false;
   shadePointerId = null;
   shade.style.transition = "";
-  if (movement > 8) setOpen(true);
-  else if (movement < -8) setOpen(false);
-  else setOpen(shadeOpen);
+
+  if (shadeOpen && movement <= -SHADE_CLOSE_THRESHOLD) {
+    setOpen(false);
+  } else if (!shadeOpen && movement >= SHADE_CLOSE_THRESHOLD) {
+    setOpen(true);
+  } else if (!shadeOpen && movement > 8) {
+    setOpen(true);
+  } else {
+    setOpen(shadeOpen);
+  }
 }
 
 function beginPageDrag(event) {
+  if (shadeOpen) return;
   if (event.target.closest(".quick-shade, .shade-grabber, .shade-close, .frame-settings, .frame-settings *")) return;
   if (event.button !== undefined && event.button !== 0) return;
 
@@ -242,6 +259,7 @@ function beginPageDrag(event) {
   pageLastX = event.clientX;
   pageDragDistance = 0;
   pages.style.scrollBehavior = "auto";
+  pages.setPointerCapture?.(event.pointerId);
   event.preventDefault();
 }
 
@@ -257,9 +275,15 @@ function movePageDrag(event) {
 function endPageDrag(event) {
   if (!pageDragging || (event.pointerId != null && event.pointerId !== pagePointerId)) return;
   pageDragging = false;
+  pages.releasePointerCapture?.(pagePointerId);
   pages.style.scrollBehavior = "smooth";
-  if (Math.abs(pageDragDistance) >= DRAG_THRESHOLD) changePage(pageDragDistance < 0 ? 1 : -1);
-  else goToPage(pageIndex);
+
+  if (Math.abs(pageDragDistance) >= DRAG_THRESHOLD) {
+    changePage(pageDragDistance < 0 ? 1 : -1);
+  } else {
+    goToPage(pageIndex);
+  }
+
   pagePointerId = null;
 }
 
@@ -281,8 +305,10 @@ widgetSizeInput?.addEventListener("input", (event) => {
   applyWidgetSize(event.target.value);
 });
 
+pages?.addEventListener("scroll", updatePageIndex, { passive: true });
+
 pages?.addEventListener("wheel", (event) => {
-  if (wheelLocked) return;
+  if (wheelLocked || shadeOpen) return;
   const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
   if (Math.abs(delta) < 4) return;
   event.preventDefault();
