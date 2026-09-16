@@ -11,39 +11,16 @@ const bottomBall = document.querySelector("#homePokeball");
 const closeButton = document.querySelector("#shadeClose");
 const message = document.querySelector("#shadeMessage");
 
-const topColorSelect =
-  document.querySelector("#frameTopColor");
-
-const bottomColorSelect =
-  document.querySelector("#frameBottomColor");
-
-const widgetSizeInput =
-  document.querySelector("#widgetSize");
-
-const widgetSizeValue =
-  document.querySelector("#widgetSizeValue");
-
-const widgetPreview =
-  document.querySelector("#widgetPreview");
+const topColorSelect = document.querySelector("#frameTopColor");
+const bottomColorSelect = document.querySelector("#frameBottomColor");
+const widgetSizeInput = document.querySelector("#widgetSize");
+const widgetSizeValue = document.querySelector("#widgetSizeValue");
+const widgetPreview = document.querySelector("#widgetPreview");
 
 const MODES = {
-  "desktop-landscape": {
-    width: 1366,
-    height: 768,
-    visualScale: 0.72
-  },
-
-  "desktop-portrait": {
-    width: 768,
-    height: 1366,
-    visualScale: 0.72
-  },
-
-  mobile: {
-    width: 390,
-    height: 844,
-    visualScale: 1
-  }
+  "desktop-landscape": { width: 1366, height: 768 },
+  "desktop-portrait": { width: 768, height: 1366 },
+  mobile: { width: 390, height: 844 }
 };
 
 const DEFAULT_WIDGET_SIZE = 150;
@@ -59,14 +36,8 @@ const STORAGE_KEYS = {
   widgetSize: "pokedex-frame-widget-size"
 };
 
-const DEFAULT_COLORS = {
-  top: "#c92828",
-  bottom: "#f4f0e7"
-};
-
 let currentMode = "desktop-landscape";
 let currentWidgetSize = DEFAULT_WIDGET_SIZE;
-
 let pageIndex = 0;
 let pageCount = 1;
 let wheelLocked = false;
@@ -89,142 +60,50 @@ let bottomBallPointerId = null;
 let bottomBallStartY = 0;
 let bottomBallMoved = false;
 
-let layoutInitialized = false;
-let orientationTimer = null;
-
 function isTouchFirst() {
-  const coarse = window.matchMedia(
-    "(pointer: coarse)"
-  ).matches;
-
-  const noHover = window.matchMedia(
-    "(hover: none)"
-  ).matches;
-
-  const mobile =
+  return window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(hover: none)").matches ||
     navigator.userAgentData?.mobile === true;
-
-  return (coarse && noHover) || mobile;
 }
 
 function detectMode() {
-  if (isTouchFirst()) {
-    return "mobile";
-  }
-
-  return window.innerHeight > window.innerWidth
-    ? "desktop-portrait"
-    : "desktop-landscape";
+  if (isTouchFirst()) return "mobile";
+  return window.innerHeight > window.innerWidth ? "desktop-portrait" : "desktop-landscape";
 }
 
 function getVirtualMetrics() {
   const config = MODES[currentMode];
-
-  const padding =
-    currentMode === "mobile"
-      ? 22
-      : currentMode === "desktop-portrait"
-        ? 24
-        : 28;
-
-  const safeBottom =
-    currentMode === "mobile"
-      ? parseFloat(
-          getComputedStyle(
-            document.documentElement
-          ).getPropertyValue("--safe-bottom")
-        ) || 0
-      : 0;
-
-  const availableWidth =
-    config.width - padding * 2;
-
-  const availableHeight =
-    config.height -
-    padding * 2 -
-    SHADE_RESERVED_HEIGHT -
-    safeBottom;
-
-  const columns = Math.max(
-    1,
-    Math.floor(
-      (availableWidth + WIDGET_GAP) /
-      (currentWidgetSize + WIDGET_GAP)
-    )
-  );
-
-  const rows = Math.max(
-    1,
-    Math.floor(
-      (availableHeight + WIDGET_GAP) /
-      (currentWidgetSize + WIDGET_GAP)
-    )
-  );
-
-  return {
-    columns,
-    rows,
-    capacity: columns * rows,
-    padding,
-    safeBottom
-  };
+  const padding = currentMode === "mobile" ? 22 : currentMode === "desktop-portrait" ? 24 : 28;
+  const availableWidth = config.width - padding * 2;
+  const availableHeight = config.height - padding * 2 - SHADE_RESERVED_HEIGHT;
+  const columns = Math.max(1, Math.floor((availableWidth + WIDGET_GAP) / (currentWidgetSize + WIDGET_GAP)));
+  const rows = Math.max(1, Math.floor((availableHeight + WIDGET_GAP) / (currentWidgetSize + WIDGET_GAP)));
+  return { columns, rows, capacity: columns * rows, padding };
 }
 
 function getOriginalWidgets() {
-  if (!initialGrid) {
-    return [];
-  }
-
-  return Array.from(
-    initialGrid.querySelectorAll(".widget")
-  );
+  return initialGrid ? Array.from(initialGrid.querySelectorAll(".widget")) : [];
 }
 
 function buildWidgetPages(resetPage = true) {
-  if (!pages) {
-    return;
-  }
+  if (!pages) return;
 
   const widgets = getOriginalWidgets();
   const metrics = getVirtualMetrics();
-
-  pageCount = Math.max(
-    1,
-    Math.ceil(
-      widgets.length / metrics.capacity
-    )
-  );
-
+  pageCount = Math.max(1, Math.ceil(widgets.length / metrics.capacity));
   pages.replaceChildren();
 
-  for (
-    let pageNumber = 0;
-    pageNumber < pageCount;
-    pageNumber += 1
-  ) {
+  for (let pageNumber = 0; pageNumber < pageCount; pageNumber += 1) {
     const page = document.createElement("div");
     page.className = "widget-page";
-    page.dataset.page = String(pageNumber);
 
     const pageGrid = document.createElement("div");
     pageGrid.className = "widget-grid";
-    pageGrid.setAttribute(
-      "aria-label",
-      `Pagina ${pageNumber + 1} di ${pageCount}`
-    );
+    pageGrid.setAttribute("aria-label", `Pagina ${pageNumber + 1} di ${pageCount}`);
 
-    const start =
-      pageNumber * metrics.capacity;
-
-    const pageWidgets = widgets.slice(
-      start,
-      start + metrics.capacity
-    );
-
-    pageWidgets.forEach((widget) => {
-      pageGrid.appendChild(
-        widget.cloneNode(true)
-      );
+    const start = pageNumber * metrics.capacity;
+    widgets.slice(start, start + metrics.capacity).forEach((widget) => {
+      pageGrid.appendChild(widget.cloneNode(true));
     });
 
     page.appendChild(pageGrid);
@@ -232,775 +111,251 @@ function buildWidgetPages(resetPage = true) {
   }
 
   updateGridStyles();
-
-  if (resetPage) {
-    pageIndex = 0;
-  }
-
-  requestAnimationFrame(() => {
-    goToPage(pageIndex, false);
-  });
+  if (resetPage) pageIndex = 0;
+  requestAnimationFrame(() => goToPage(pageIndex, false));
 }
 
 function updateGridStyles() {
-  if (!pages) {
-    return;
-  }
-
   const metrics = getVirtualMetrics();
-
-  pages.querySelectorAll(".widget-grid").forEach((gridElement) => {
-    gridElement.style.gridTemplateColumns =
-      `repeat(${metrics.columns}, ${currentWidgetSize}px)`;
-
-    gridElement.style.gridTemplateRows =
-      `repeat(${metrics.rows}, ${currentWidgetSize}px)`;
-
-    gridElement.style.columnGap =
-      `${WIDGET_GAP}px`;
-
-    gridElement.style.rowGap =
-      `${WIDGET_GAP}px`;
+  pages?.querySelectorAll(".widget-grid").forEach((grid) => {
+    grid.style.gridTemplateColumns = `repeat(${metrics.columns}, ${currentWidgetSize}px)`;
+    grid.style.gridTemplateRows = `repeat(${metrics.rows}, ${currentWidgetSize}px)`;
+    grid.style.columnGap = `${WIDGET_GAP}px`;
+    grid.style.rowGap = `${WIDGET_GAP}px`;
   });
-
-  pages.querySelectorAll(".widget-page").forEach((page) => {
-    page.style.paddingBottom =
-      `${metrics.safeBottom}px`;
-  });
-
-  document.documentElement.style.setProperty(
-    "--widget-size",
-    `${currentWidgetSize}px`
-  );
+  document.documentElement.style.setProperty("--widget-size", `${currentWidgetSize}px`);
 }
 
 function goToPage(index, smooth = true) {
-  if (!pages) {
-    return;
-  }
-
-  pageIndex = Math.max(
-    0,
-    Math.min(pageCount - 1, index)
-  );
-
-  pages.scrollTo({
-    left: pageIndex * pages.clientWidth,
-    behavior: smooth ? "smooth" : "auto"
-  });
+  if (!pages) return;
+  pageIndex = Math.max(0, Math.min(pageCount - 1, index));
+  pages.scrollTo({ left: pageIndex * pages.clientWidth, behavior: smooth ? "smooth" : "auto" });
 }
 
 function changePage(direction) {
-  const nextPage =
-    pageIndex + Math.sign(direction);
-
-  if (nextPage !== pageIndex) {
-    goToPage(nextPage);
-  }
-}
-
-function updatePageIndexFromScroll() {
-  if (!pages || !pages.clientWidth) {
-    return;
-  }
-
-  pageIndex = Math.max(
-    0,
-    Math.min(
-      pageCount - 1,
-      Math.round(
-        pages.scrollLeft / pages.clientWidth
-      )
-    )
-  );
+  const next = pageIndex + Math.sign(direction);
+  if (next !== pageIndex) goToPage(next);
 }
 
 function updateStageScale() {
-  if (!stage || !viewport) {
-    return;
-  }
-
+  if (!stage || !viewport) return;
   const config = MODES[currentMode];
-  const viewportRect =
-    viewport.getBoundingClientRect();
-
-  const scale = Math.min(
-    viewportRect.width / config.width,
-    viewportRect.height / config.height
-  );
-
+  const rect = viewport.getBoundingClientRect();
+  const scale = Math.min(rect.width / config.width, rect.height / config.height);
   stage.style.width = `${config.width}px`;
   stage.style.height = `${config.height}px`;
   stage.dataset.mode = currentMode;
-  stage.style.transform =
-    `translate(-50%, -50%) scale(${scale})`;
+  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 
-function setFrameColor(
-  property,
-  value,
-  storageKey
-) {
-  document.documentElement.style.setProperty(
-    property,
-    value
-  );
-
-  localStorage.setItem(
-    storageKey,
-    value
-  );
+function setFrameColor(property, value, storageKey) {
+  document.documentElement.style.setProperty(property, value);
+  localStorage.setItem(storageKey, value);
 }
 
 function loadSettings() {
-  const savedTopColor =
-    localStorage.getItem(
-      STORAGE_KEYS.topColor
-    ) || DEFAULT_COLORS.top;
+  const top = localStorage.getItem(STORAGE_KEYS.topColor) || "#c92828";
+  const bottom = localStorage.getItem(STORAGE_KEYS.bottomColor) || "#f4f0e7";
+  const savedSize = Number(localStorage.getItem(STORAGE_KEYS.widgetSize));
 
-  const savedBottomColor =
-    localStorage.getItem(
-      STORAGE_KEYS.bottomColor
-    ) || DEFAULT_COLORS.bottom;
+  currentWidgetSize = Number.isFinite(savedSize) && savedSize >= MIN_WIDGET_SIZE && savedSize <= MAX_WIDGET_SIZE
+    ? savedSize
+    : DEFAULT_WIDGET_SIZE;
 
-  const savedWidgetSize = Number(
-    localStorage.getItem(
-      STORAGE_KEYS.widgetSize
-    )
-  );
+  setFrameColor("--frame-top", top, STORAGE_KEYS.topColor);
+  setFrameColor("--frame-bottom", bottom, STORAGE_KEYS.bottomColor);
 
-  currentWidgetSize =
-    Number.isFinite(savedWidgetSize) &&
-    savedWidgetSize >= MIN_WIDGET_SIZE &&
-    savedWidgetSize <= MAX_WIDGET_SIZE
-      ? savedWidgetSize
-      : DEFAULT_WIDGET_SIZE;
-
-  setFrameColor(
-    "--frame-top",
-    savedTopColor,
-    STORAGE_KEYS.topColor
-  );
-
-  setFrameColor(
-    "--frame-bottom",
-    savedBottomColor,
-    STORAGE_KEYS.bottomColor
-  );
-
-  if (topColorSelect) {
-    topColorSelect.value = savedTopColor;
-  }
-
-  if (bottomColorSelect) {
-    bottomColorSelect.value =
-      savedBottomColor;
-  }
-
-  if (widgetSizeInput) {
-    widgetSizeInput.value =
-      String(currentWidgetSize);
-  }
-
+  if (topColorSelect) topColorSelect.value = top;
+  if (bottomColorSelect) bottomColorSelect.value = bottom;
+  if (widgetSizeInput) widgetSizeInput.value = String(currentWidgetSize);
   updateWidgetSizeInterface();
 }
 
 function updateWidgetSizeInterface() {
-  if (widgetSizeValue) {
-    widgetSizeValue.textContent =
-      `${currentWidgetSize} px`;
-  }
-
+  if (widgetSizeValue) widgetSizeValue.textContent = `${currentWidgetSize} px`;
   if (widgetPreview) {
-    widgetPreview.style.width =
-      `${currentWidgetSize}px`;
-
-    widgetPreview.style.height =
-      `${currentWidgetSize}px`;
+    widgetPreview.style.width = `${currentWidgetSize}px`;
+    widgetPreview.style.height = `${currentWidgetSize}px`;
   }
-
-  document.documentElement.style.setProperty(
-    "--widget-size",
-    `${currentWidgetSize}px`
-  );
+  document.documentElement.style.setProperty("--widget-size", `${currentWidgetSize}px`);
 }
 
 function applyWidgetSize(value) {
-  const nextSize = Number(value);
-
-  if (
-    !Number.isFinite(nextSize) ||
-    nextSize < MIN_WIDGET_SIZE ||
-    nextSize > MAX_WIDGET_SIZE
-  ) {
-    return;
-  }
-
-  currentWidgetSize = nextSize;
-
-  localStorage.setItem(
-    STORAGE_KEYS.widgetSize,
-    String(currentWidgetSize)
-  );
-
+  const size = Number(value);
+  if (!Number.isFinite(size) || size < MIN_WIDGET_SIZE || size > MAX_WIDGET_SIZE) return;
+  currentWidgetSize = size;
+  localStorage.setItem(STORAGE_KEYS.widgetSize, String(size));
   updateWidgetSizeInterface();
-
-  pageIndex = 0;
   buildWidgetPages(true);
-}
-
-function initializeLayout() {
-  if (layoutInitialized) {
-    return;
-  }
-
-  loadSettings();
-
-  currentMode = detectMode();
-  updateStageScale();
-  buildWidgetPages(true);
-
-  layoutInitialized = true;
-}
-
-function handleWheel(event) {
-  if (!pages || wheelLocked) {
-    return;
-  }
-
-  const delta =
-    Math.abs(event.deltaX) >
-    Math.abs(event.deltaY)
-      ? event.deltaX
-      : event.deltaY;
-
-  if (Math.abs(delta) < 4) {
-    return;
-  }
-
-  event.preventDefault();
-  wheelLocked = true;
-
-  changePage(delta > 0 ? 1 : -1);
-
-  window.setTimeout(() => {
-    wheelLocked = false;
-  }, 450);
-}
-
-function beginPageDrag(event) {
-  if (
-    event.target.closest(
-      ".quick-shade, .shade-grabber, .shade-close, .frame-settings, .frame-settings *"
-    )
-  ) {
-    return;
-  }
-
-  if (!pages) {
-    return;
-  }
-
-  if (
-    event.button !== undefined &&
-    event.button !== 0
-  ) {
-    return;
-  }
-
-  pageDragging = true;
-  pagePointerId = event.pointerId;
-  pageStartX = event.clientX;
-  pageLastX = event.clientX;
-  pageDragDistance = 0;
-
-  pages.style.scrollBehavior = "auto";
-  pages.setPointerCapture?.(event.pointerId);
-
-  event.preventDefault();
-}
-
-function movePageDrag(event) {
-  if (!pageDragging) {
-    return;
-  }
-
-  if (event.pointerId !== pagePointerId) {
-    return;
-  }
-
-  const delta =
-    event.clientX - pageLastX;
-
-  pageLastX = event.clientX;
-  pageDragDistance =
-    event.clientX - pageStartX;
-
-  pages.scrollLeft -= delta;
-
-  event.preventDefault();
-}
-
-function endPageDrag(event) {
-  if (!pageDragging) {
-    return;
-  }
-
-  if (
-    event.pointerId != null &&
-    event.pointerId !== pagePointerId
-  ) {
-    return;
-  }
-
-  pageDragging = false;
-
-  pages.releasePointerCapture?.(
-    pagePointerId
-  );
-
-  pages.style.scrollBehavior = "smooth";
-
-  if (
-    Math.abs(pageDragDistance) >=
-    DRAG_THRESHOLD
-  ) {
-    changePage(
-      pageDragDistance < 0 ? 1 : -1
-    );
-  } else {
-    goToPage(pageIndex);
-  }
-
-  pagePointerId = null;
 }
 
 function setOpen(open) {
   shadeOpen = Boolean(open);
-
-  shade.classList.toggle(
-    "is-open",
-    shadeOpen
-  );
-
-  shade.setAttribute(
-    "aria-hidden",
-    String(!shadeOpen)
-  );
-
+  shade.classList.toggle("is-open", shadeOpen);
+  shade.setAttribute("aria-hidden", String(!shadeOpen));
   backdrop.hidden = !shadeOpen;
 
-  shade.style.transform = shadeOpen
-    ? "translateY(0)"
-    : "translateY(calc(-100% + var(--shade-grabber-height)))";
-
-  shade.style.pointerEvents =
-    shadeOpen ? "auto" : "none";
+  if (shadeOpen) {
+    shade.style.transform = "translateY(0)";
+    shade.style.pointerEvents = "auto";
+  } else {
+    shade.style.transform = "translateY(calc(-100% + var(--shade-grabber-height)))";
+    shade.style.pointerEvents = "none";
+  }
 }
 
 function beginShadeDrag(event) {
   shadeDragging = true;
   shadePointerId = event.pointerId;
   shadeStartY = event.clientY;
-
-  shadeStartOffset = shadeOpen
-    ? 0
-    : -shade.offsetHeight +
-      SHADE_RESERVED_HEIGHT;
-
+  shadeStartOffset = shadeOpen ? 0 : -shade.offsetHeight + SHADE_RESERVED_HEIGHT;
   shadeCurrentOffset = shadeStartOffset;
-
   shade.style.transition = "none";
-
-  [grabber, shade, topBall].forEach((element) => {
-    element.classList.add("is-dragging");
-  });
-
   event.preventDefault();
 }
 
 function moveShadeDrag(event) {
-  if (!shadeDragging) {
-    return;
-  }
-
-  if (event.pointerId !== shadePointerId) {
-    return;
-  }
-
-  shadeCurrentOffset = Math.max(
-    -shade.offsetHeight +
-      SHADE_RESERVED_HEIGHT,
-    Math.min(
-      0,
-      shadeStartOffset +
-        event.clientY -
-        shadeStartY
-    )
-  );
-
-  shade.style.transform =
-    `translateY(${shadeCurrentOffset}px)`;
-
+  if (!shadeDragging || event.pointerId !== shadePointerId) return;
+  shadeCurrentOffset = Math.max(-shade.offsetHeight + SHADE_RESERVED_HEIGHT, Math.min(0, shadeStartOffset + event.clientY - shadeStartY));
+  shade.style.transform = `translateY(${shadeCurrentOffset}px)`;
   event.preventDefault();
 }
 
 function endShadeDrag(event) {
-  if (!shadeDragging) {
-    return;
-  }
-
-  if (
-    event.pointerId != null &&
-    event.pointerId !== shadePointerId
-  ) {
-    return;
-  }
-
-  const movement =
-    event.clientY - shadeStartY;
-
+  if (!shadeDragging || (event.pointerId != null && event.pointerId !== shadePointerId)) return;
+  const movement = event.clientY - shadeStartY;
   shadeDragging = false;
   shadePointerId = null;
-
-  [grabber, shade, topBall].forEach((element) => {
-    element.classList.remove("is-dragging");
-  });
-
   shade.style.transition = "";
+  if (movement > 8) setOpen(true);
+  else if (movement < -8) setOpen(false);
+  else setOpen(shadeOpen);
+}
 
-  if (movement > 8) {
-    setOpen(true);
-  } else if (movement < -8) {
-    setOpen(false);
-  } else {
-    setOpen(shadeOpen);
-  }
+function beginPageDrag(event) {
+  if (event.target.closest(".quick-shade, .shade-grabber, .shade-close, .frame-settings, .frame-settings *")) return;
+  if (event.button !== undefined && event.button !== 0) return;
+
+  pageDragging = true;
+  pagePointerId = event.pointerId;
+  pageStartX = event.clientX;
+  pageLastX = event.clientX;
+  pageDragDistance = 0;
+  pages.style.scrollBehavior = "auto";
+  event.preventDefault();
+}
+
+function movePageDrag(event) {
+  if (!pageDragging || event.pointerId !== pagePointerId) return;
+  const delta = event.clientX - pageLastX;
+  pageLastX = event.clientX;
+  pageDragDistance = event.clientX - pageStartX;
+  pages.scrollLeft -= delta;
+  event.preventDefault();
+}
+
+function endPageDrag(event) {
+  if (!pageDragging || (event.pointerId != null && event.pointerId !== pagePointerId)) return;
+  pageDragging = false;
+  pages.style.scrollBehavior = "smooth";
+  if (Math.abs(pageDragDistance) >= DRAG_THRESHOLD) changePage(pageDragDistance < 0 ? 1 : -1);
+  else goToPage(pageIndex);
+  pagePointerId = null;
 }
 
 function goHome() {
-  if (shadeOpen) {
-    setOpen(false);
-    return;
-  }
-
-  goToPage(0);
+  if (shadeOpen) setOpen(false);
+  else goToPage(0);
 }
 
-function beginBottomBallDrag(event) {
-  bottomBallDragging = true;
-  bottomBallPointerId = event.pointerId;
-  bottomBallStartY = event.clientY;
-  bottomBallMoved = false;
+topColorSelect?.addEventListener("change", (event) => {
+  setFrameColor("--frame-top", event.target.value, STORAGE_KEYS.topColor);
+});
 
-  bottomBall.setPointerCapture?.(
-    event.pointerId
-  );
+bottomColorSelect?.addEventListener("change", (event) => {
+  setFrameColor("--frame-bottom", event.target.value, STORAGE_KEYS.bottomColor);
+});
 
-  bottomBall.classList.add("is-dragging");
+widgetSizeInput?.addEventListener("input", (event) => {
+  event.stopPropagation();
+  applyWidgetSize(event.target.value);
+});
+
+pages?.addEventListener("wheel", (event) => {
+  if (wheelLocked) return;
+  const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  if (Math.abs(delta) < 4) return;
   event.preventDefault();
-}
+  wheelLocked = true;
+  changePage(delta > 0 ? 1 : -1);
+  setTimeout(() => { wheelLocked = false; }, 450);
+}, { passive: false });
 
-function moveBottomBallDrag(event) {
-  if (!bottomBallDragging) {
-    return;
-  }
+pages?.addEventListener("pointerdown", beginPageDrag);
+pages?.addEventListener("pointermove", movePageDrag, { passive: false });
+pages?.addEventListener("pointerup", endPageDrag);
+pages?.addEventListener("pointercancel", endPageDrag);
 
-  if (
-    event.pointerId !== bottomBallPointerId
-  ) {
-    return;
-  }
+grabber?.addEventListener("pointerdown", beginShadeDrag);
+topBall?.addEventListener("pointerdown", beginShadeDrag);
 
-  const movement =
-    event.clientY - bottomBallStartY;
+document.addEventListener("pointermove", moveShadeDrag, { passive: false });
+document.addEventListener("pointerup", endShadeDrag);
+document.addEventListener("pointercancel", endShadeDrag);
 
-  if (Math.abs(movement) >= 8) {
-    bottomBallMoved = true;
-  }
-
-  if (shadeOpen && movement < -8) {
-    const progress = Math.min(
-      1,
-      Math.abs(movement) /
-        Math.max(1, shade.offsetHeight)
-    );
-
-    shade.style.transition = "none";
-    shade.style.transform =
-      `translateY(${
-        -progress * shade.offsetHeight
-      }px)`;
-  }
-
-  event.preventDefault();
-}
-
-function endBottomBallDrag(event) {
-  if (!bottomBallDragging) {
-    return;
-  }
-
-  if (
-    event.pointerId != null &&
-    event.pointerId !== bottomBallPointerId
-  ) {
-    return;
-  }
-
-  const movement =
-    event.clientY - bottomBallStartY;
-
-  bottomBallDragging = false;
-
-  bottomBall.releasePointerCapture?.(
-    bottomBallPointerId
-  );
-
-  bottomBall.classList.remove(
-    "is-dragging"
-  );
-
-  shade.style.transition = "";
-
-  if (shadeOpen && movement < -20) {
-    setOpen(false);
-  } else if (!bottomBallMoved) {
-    goHome();
-  } else if (!shadeOpen) {
-    goHome();
-  }
-
-  bottomBallPointerId = null;
-}
-
-function handleOrientationChange() {
-  clearTimeout(orientationTimer);
-
-  orientationTimer = window.setTimeout(() => {
-    const nextMode = detectMode();
-
-    if (nextMode === currentMode) {
-      return;
-    }
-
-    currentMode = nextMode;
-    pageIndex = 0;
-
-    updateStageScale();
-    buildWidgetPages(true);
-  }, 250);
-}
-
-topColorSelect?.addEventListener(
-  "pointerdown",
-  (event) => {
-    event.stopPropagation();
-  }
-);
-
-topColorSelect?.addEventListener(
-  "change",
-  (event) => {
-    event.stopPropagation();
-
-    setFrameColor(
-      "--frame-top",
-      event.target.value,
-      STORAGE_KEYS.topColor
-    );
-  }
-);
-
-bottomColorSelect?.addEventListener(
-  "pointerdown",
-  (event) => {
-    event.stopPropagation();
-  }
-);
-
-bottomColorSelect?.addEventListener(
-  "change",
-  (event) => {
-    event.stopPropagation();
-
-    setFrameColor(
-      "--frame-bottom",
-      event.target.value,
-      STORAGE_KEYS.bottomColor
-    );
-  }
-);
-
-widgetSizeInput?.addEventListener(
-  "pointerdown",
-  (event) => {
-    event.stopPropagation();
-  }
-);
-
-widgetSizeInput?.addEventListener(
-  "input",
-  (event) => {
-    event.stopPropagation();
-    applyWidgetSize(event.target.value);
-  }
-);
-
-widgetSizeInput?.addEventListener(
-  "change",
-  (event) => {
-    event.stopPropagation();
-    applyWidgetSize(event.target.value);
-  }
-);
-
-pages?.addEventListener(
-  "wheel",
-  handleWheel,
-  { passive: false }
-);
-
-pages?.addEventListener(
-  "scroll",
-  updatePageIndexFromScroll,
-  { passive: true }
-);
-
-pages?.addEventListener(
-  "pointerdown",
-  beginPageDrag
-);
-
-pages?.addEventListener(
-  "pointermove",
-  movePageDrag,
-  { passive: false }
-);
-
-pages?.addEventListener(
-  "pointerup",
-  endPageDrag
-);
-
-pages?.addEventListener(
-  "pointercancel",
-  endPageDrag
-);
-
-[grabber, shade, topBall].forEach((element) => {
-  element.addEventListener(
-    "pointerdown",
-    beginShadeDrag
-  );
+topBall?.addEventListener("click", () => {
+  if (!shadeDragging) setOpen(!shadeOpen);
 });
 
-bottomBall?.addEventListener(
-  "pointerdown",
-  beginBottomBallDrag
-);
+closeButton?.addEventListener("click", () => setOpen(false));
+backdrop?.addEventListener("click", () => setOpen(false));
+bottomBall?.addEventListener("click", goHome);
 
-document.addEventListener(
-  "pointermove",
-  moveShadeDrag,
-  { passive: false }
-);
-
-document.addEventListener(
-  "pointermove",
-  moveBottomBallDrag,
-  { passive: false }
-);
-
-document.addEventListener(
-  "pointerup",
-  endShadeDrag
-);
-
-document.addEventListener(
-  "pointerup",
-  endBottomBallDrag
-);
-
-document.addEventListener(
-  "pointercancel",
-  endShadeDrag
-);
-
-document.addEventListener(
-  "pointercancel",
-  endBottomBallDrag
-);
-
-topBall.addEventListener("click", () => {
-  if (!shadeDragging) {
-    setOpen(!shadeOpen);
-  }
-});
-
-bottomBall?.addEventListener("click", () => {
-  if (!bottomBallMoved) {
-    goHome();
-  }
-});
-
-grabber.addEventListener("keydown", (event) => {
-  if (
-    event.key === "Enter" ||
-    event.key === " "
-  ) {
+grabber?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
     setOpen(!shadeOpen);
   }
 });
 
-closeButton.addEventListener(
-  "click",
-  () => setOpen(false)
-);
-
-backdrop.addEventListener(
-  "click",
-  () => setOpen(false)
-);
-
-document
-  .querySelectorAll("[data-toggle]")
-  .forEach((tile) => {
-    tile.addEventListener("click", () => {
-      tile.classList.toggle("is-active");
-
-      const active =
-        tile.classList.contains("is-active");
-
-      const label =
-        tile.querySelector("strong").textContent;
-
-      tile.querySelector("small").textContent =
-        active ? "Attivi" : "Disattivi";
-
-      message.textContent =
-        `${label}: ${
-          active ? "attivato" : "disattivato"
-        }`;
-    });
+document.querySelectorAll("[data-toggle]").forEach((tile) => {
+  tile.addEventListener("click", () => {
+    tile.classList.toggle("is-active");
+    const active = tile.classList.contains("is-active");
+    const label = tile.querySelector("strong")?.textContent || "Funzione";
+    const small = tile.querySelector("small");
+    if (small) small.textContent = active ? "Attivi" : "Disattivi";
+    if (message) message.textContent = `${label}: ${active ? "attivato" : "disattivato"}`;
   });
+});
 
-document
-  .querySelector("#settingsButton")
-  ?.addEventListener(
-    "click",
-    () => {
-      message.textContent =
-        "Impostazioni: pannello dimostrativo";
-    }
-  );
+document.querySelector("#settingsButton")?.addEventListener("click", () => {
+  if (message) message.textContent = "Impostazioni: pannello dimostrativo";
+});
 
-window.addEventListener(
-  "orientationchange",
-  handleOrientationChange,
-  { passive: true }
-);
+function initialize() {
+  loadSettings();
+  currentMode = detectMode();
+  updateStageScale();
+  buildWidgetPages(true);
+  setOpen(false);
+}
 
-initializeLayout();
-setOpen(false);
+window.addEventListener("resize", () => {
+  const nextMode = detectMode();
+  if (nextMode !== currentMode) {
+    currentMode = nextMode;
+    buildWidgetPages(true);
+  }
+  updateStageScale();
+}, { passive: true });
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => {
+    currentMode = detectMode();
+    updateStageScale();
+    buildWidgetPages(true);
+  }, 250);
+}, { passive: true });
+
+initialize();
